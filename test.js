@@ -15,9 +15,8 @@ let con = mysql.createConnection({
 
 con.connect(function(err) {
   if (err) throw err;
-  records.forEach((array)=>{     
-    array.splice(0,1)
-  })
+  
+  console.log(records);
   let values = [records[1], records[2], records[3]];
   let sql = "insert into student_details (" + records[0] + ") values ?";
   con.query(sql, [values], function(err, result) {
