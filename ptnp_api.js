@@ -45,7 +45,7 @@ app.put('/drives/add',upload.none(),(req,res)=>{
   no_of_rounds = data['noOfRounds'];
   delete data['noOfRounds']
   let date = data["date_of_drive"].split('/');
-  data['date_of_drive'] = [date[2],date[1],date[0]].join('-');
+  data['date_of_drive'] = [date[2],date[0],date[1]].join('-');
   let columns = Object.keys(data);
   let values = Object.values(data);
   round_id = values.pop();
@@ -85,6 +85,19 @@ app.post('/rounds/delete',(req,res)=>{
   res.send("Deleted successfully!")
 });
 
+app.get('/drives/upcoming',(req,res)=>{
+  let date = new Date().toLocaleDateString('en-GB').split('/');
+  date = [date[2],date[0],date[1]].join('-');  
+  let sql = "select * from drive_details where date_of_drive>=DATE_FORMAT('"+date+"', '%Y-%m-%d')";
+  con.query(sql,(err,result)=>{
+    if (err) throw err; 
+    result = JSON.parse(JSON.stringify(result));
+    result.forEach((element)=>{
+      console.log(element);
+    });
+    res.send('hi')  ;
+  })
+});
 
 app.get('/student/details',upload.none(),(req,res)=>{
   let sql = "select * from student_details";
