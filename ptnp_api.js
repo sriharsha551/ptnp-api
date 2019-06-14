@@ -11,7 +11,7 @@ const port = 5000;
 let con = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "sriharsha12345",
+  password: "koushik@999",
   database: "pragati_tnp"
 });
 
@@ -40,22 +40,52 @@ app.put("/students/add", upload.array("file", 12), (req, res) => {
   res.send("Data Imported successfully");
 });
 
-app.put('/drives/add',upload.none(),(req,res)=>{
+app.post('/drives/add',upload.none(),(req,res)=>{
   let data = req.body.data;
-  no_of_rounds = data['noOfRounds'];
-  delete data['noOfRounds']
+  company = data['company'];
+  round_id = data['round_id'];
+  delete data['round_id'];
   let date = data["date_of_drive"].split('/');
-  data['date_of_drive'] = [date[2],date[0],date[1]].join('-');
+  data['date_of_drive'] = [date[2],date[1],date[0]].join('-');
   let columns = Object.keys(data);
   let values = Object.values(data);
-  round_id = values.pop();
+  //round_id = values.pop();
   values = [values];
-  round_id.forEach((id)=>{
-    values[0].push(id);
+  // round_id.forEach((id)=>{
+  //   values[0].push(id);
     let sql = "insert into drive_details ("+columns+") values ?";
     con.query(sql,[values],(err,res)=>{
       if (err) throw err;
+   })
+   con.query("select * from drive_details where company = ('"+data.company+"')" ,(err,result2)=>{
+      if(err) throw err;
+      let drive_values=[];
+      let temp=[]
+      drive_id=result2[0].drive_id;
+      drive_values.push(drive_id);
+      // console.log(values2);
+      round_id.forEach((id)=>{
+
+         temp.push(id);
+      //  console.log(round_id);
+
     })
+   //drive_values.push(temp);
+   //console.log(drive_values);
+   let drive_columns = [];
+   drive_columns.push("drive_id");
+   drive_columns.push("round_id");
+   drive_values=[drive_values];
+   temp.forEach((id)=>{
+        drive_values.push(id);
+   
+   let sql2 = "insert into drive_rounds ("+drive_columns+") values ?";
+    con.query(sql2,[drive_values],(error,resul)=>{
+      if (error) throw error;
+    })
+    drive_values.pop();
+    })
+
     values[0].pop();
   });
 });
@@ -65,6 +95,7 @@ app.put('/round/add', function(req, res) {
   let sql = "insert into rounds (round_name) values ('"+data.data+"')";
   con.query(sql,(err,result)=>{
     if (err) throw err
+    //console.log(result);
   });
   res.send('Rounds added successfully');
   });
@@ -92,8 +123,9 @@ app.get('/drives/upcoming',(req,res)=>{
   con.query(sql,(err,result)=>{
     if (err) throw err; 
     result = JSON.parse(JSON.stringify(result));
-    result.forEach((element)=>{
-      console.log(element);
+        result.forEach((element)=>{
+          console.log(element);
+          
     });
     res.send('hi')  ;
   })
