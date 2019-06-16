@@ -119,16 +119,15 @@ app.get("/drives/upcoming", (req, res) => {
   let date = new Date().toLocaleDateString("en-GB").split("/");
   date = [date[2], date[0], date[1]].join("-");
   let noOfDrives;
-  let drive_list = [];
   let sql =
     "select * from drive_details where date_of_drive>=DATE_FORMAT('" +
     date +
-    "', '%Y-%m-%d')";
+    "', '%Y-%m-%d') and delete_status='0'";
   con.query(sql, (err, result) => {
     if (err) throw err;
     driveData = JSON.parse(JSON.stringify(result));
     noOfDrives = driveData.length;
-    for (let i = 0; i <driveData.length; i++) {
+    for (let i = 0; i < driveData.length; i++) {
       let drive_id = driveData[i].drive_id;
       let noOfRounds = driveData[i].no_of_rounds;
       let sql =
@@ -138,27 +137,74 @@ app.get("/drives/upcoming", (req, res) => {
         let round_list = [];
         for (let j = 0; j < round_ids.length; j++) {
           let sql =
-            "select round_name from rounds where id=" +
+            "select id,round_name from rounds where id=" +
             round_ids[j].round_id +
             "";
           con.query(sql, (err, result) => {
-            round_list.push(result[0].round_name);
+            round_list.push(result[0]);
             driveData[i]["rounds"] = round_list;
-            if(noOfRounds-1 === j){
-              updateDrive(driveData,i);
+            if (noOfRounds - 1 === j) {
+              updateDrive(driveData, i);
             }
           });
         }
       });
     }
   });
-  function updateDrive(driveData,i) {
-    drive_list.push(driveData);
-    if(i===noOfDrives-1){
+  function updateDrive(driveData, i) {
+    if (i === noOfDrives - 1) {
       res.send(driveData);
     }
   }
 });
+
+app.post("/drives/delete", (req, res) => {
+  let data = req.body.data;
+  let sql ="update drive_details set delete_status='1' where drive_id=" +data.drive_id +"";
+  con.query(sql, (err, driveResult) => {
+    if (err) throw err;
+  });
+  res.send('Deleted Successfully!');
+});
+
+app.post("/drives/modify", (req, res) => {
+  let data = req.body.data;
+  let date = data.date.split('/');
+  date =[date[2], date[1],date[0]].join("-");
+  let dateQuery ="update drive_details set date_of_drive=DATE_FORMAT('" +date +"', '%Y-%m-%d') where drive_id="+data.drive_id+"";
+  con.query(dateQuery,(err,result)=>{
+    if (err) throw err;
+  });
+  con.query("select id from drive_rounds where drive_id="+data.drive_id+"",(err,ids)=>{
+    ids=(JSON.parse(JSON.stringify(ids)));
+    let noOfRounds = data.rounds.length
+    if(noOfRounds > ids.length){
+      values=[[data.drive_id,data.rounds[noOfRounds-1]]]
+      con.query("insert into drive_rounds (drive_id,round_id) values ?",[values]);
+      con.query("update drive_details set no_of_rounds="+noOfRounds+" where drive_id="+data.drive_id+"");
+    }
+    else{
+    let id_list = [];
+    ids.forEach((element)=>{id_list.push(element.id)});
+    con.query("update drive_details set no_of_rounds="+ids.length+" where drive_id="+data.drive_id+"");
+    for(let i=0;i<id_list.length;i++){
+        let roundQuery = "update drive_rounds set round_id ="+data.rounds[i]+" where id="+id_list[i]+"";
+        con.query(roundQuery,(err,resultRound)=>{
+          if (err) throw err;
+        });
+      }
+    }
+  });
+  res.send('successfully modified!');
+});
+
+app.get("/passing/year",(req,res)=>{
+  let sql = "select * from passing_out_year";
+  con.query(sql,(err,result)=>{
+    res.send(JSON.parse(JSON.stringify(result)));
+  });
+});
+
 app.get("/student/details", upload.none(), (req, res) => {
   let sql = "select * from student_details";
   let data = [];
