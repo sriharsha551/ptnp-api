@@ -194,46 +194,24 @@ app.post("/students/addToDrive",(req,res)=>{
 app.post("/drives/add", upload.none(), (req, res) => {
   let returnData = {};
   let data = req.body.data;
-  company = data["company"];
-  round_id = data["round_id"];
-  // console.log(data);
+  round_id = data.round_id;
   delete data["round_id"];
   let date = data["date_of_drive"].split("/");
   data["date_of_drive"] = [date[2], date[1], date[0]].join("-");
   let columns = Object.keys(data);
-  let values = Object.values(data);
-  values = [values];
-  let sql = "insert into drive_details (" + columns + ") values ?";
-  con.query(sql, [values], (err, res) => {
+  let values = [Object.values(data)];
+  let drive_id;
+  let sql = "insert into drive_details (" + columns + ") values ? ";
+  con.query(sql,[values],(err, result) => {
     if (err) throw err;
+    drive_id=result.insertId;
+    round_id.forEach(id=>{
+      let sql = "insert into drive_rounds (drive_id,round_id) values('"+drive_id+"','"+id+"')";
+      con.query(sql,(err,result)=>{
+        if (err) throw err;
+      });
+    });
   });
-  con.query(
-    "select * from drive_details where drive_id = (select max(drive_id) from drive_details)",
-    (err, result2) => {
-      if (err) throw err;
-      let drive_values = [];
-      let temp = [];
-      drive_id = result2[0].drive_id;
-      drive_values.push(drive_id);
-      round_id.forEach(id => {
-        temp.push(id);
-      });
-      let drive_columns = [];
-      drive_columns.push(drive_id);
-      drive_columns.push(round_id);
-      drive_values = [drive_values];
-      temp.forEach(id => {
-        drive_values[0].push(id);
-        let sql2 = "insert into drive_rounds (drive_id,round_id) values ?";
-        con.query(sql2, [drive_values], (error, resul) => {
-          if (error) throw error;
-        });
-        drive_values[0].pop();
-      });
-
-      values[0].pop();
-    }
-  );
   returnData.status = "Successfully added!";
   res.send(returnData);
 });
