@@ -39,7 +39,7 @@ app.post("/students/add", upload.array("file", 12), (req, res) => {
     }
     let values = [records[1], records[2], records[3]];
     console;
-    let sql = "insert into student_details (" + records[0] + ") values ?";
+    let sql = "insert into student_details (" + records[0] + ") values ? on duplicate key update (" + records[0] + ") values ?";
     con.query(sql, [values], function(err) {
       if (err) throw err;
     });
@@ -357,21 +357,20 @@ app.get("/passing/year", (req, res) => {
 app.post("/students/filter", (req, res) => {
   let returnData = {};
   let data = req.body.data;
-  let branch=[];
+  let branch = [];
   let btech_name, inter_name, ssc_name;
-  data.branch.forEach((element)=>{
+  data.branch.forEach(element => {
     branch.push(parseInt(element));
   });
-  branch=`${unescape(branch)}`;
+  branch = `${unescape(branch)}`;
 
-  if(data.isSelected ==='yes'){
-    data.isSelected="'0','1'";
+  if (data.isSelected === "yes") {
+    data.isSelected = "'0','1'";
+  } else {
+    data.isSelected = "'0'";
   }
-  else{
-    data.isSelected="'0'";
-  }
-  if (data.gender === 'all'){
-    data.gender= "'M','F'";
+  if (data.gender === "all") {
+    data.gender = "'M','F'";
   }
   if (data.class10_score_type === "percentage") {
     ssc_name = "SSC_PERCENTAGE";
@@ -392,11 +391,58 @@ app.post("/students/filter", (req, res) => {
   let sql ="select * from student_details where "+btech_name+">="+data.btech_score+" and "+inter_name+">="+data.class12_score+" and "+
   ""+ssc_name+">="+data.class10_score+" and BTECH_BACKLOGS<="+data.backlogs+" and EAMCET_RANK<"+data.eamcet_rank+" and GENDER in ("+ data.gender +") "
    +"and YOP_BTECH="+data.year_of_passing+" and selection_status in ("+data.isSelected+") and BRANCH_CODE in ("+branch+") ";
-  con.query(sql, (err, result) => {
-    result=(JSON.parse(JSON.stringify(result)));
-    returnData.result={result};
+  
+   con.query(sql, (err, result) => {
+    result = JSON.parse(JSON.stringify(result));
+    result.forEach(student => {
+      if (student.SSC_GPA === null) {
+        delete student.SSC_GPA;
+        student.class10_score = student.SSC_PERCENTAGE;
+        delete student.SSC_PERCENTAGE;
+      } else {
+        delete student.SSC_PERCENTAGE;
+        student.class10_score = student.SSC_GPA;
+        delete student.SSC_GPA;
+      }
+      if (student.INTER_CGPA === null) {
+        delete student.INTER_CGPA;
+        student.class12_score = student.INTER_PERCENTAGE;
+        delete student.INTER_PERCENTAGE;
+      } else {
+        delete student.INTER_PERCENTAGE;
+        student.class12_score = student.INTER_GPA;
+        delete student.INTER_GPA;
+      }
+      if (student.BTECH_CGPA === null) {
+        delete student.BTECH_CGPA;
+        student.btech_score = student.BTECH_PERCENTAGE;
+        delete student.BTECH_PERCENTAGE;
+      } else {
+        delete student.BTECH_PERCENTAGE;
+        student.btech_score = student.BTECH_CGPA;
+        delete student.BTECH_CGPA;
+      }
+    });
+    returnData.result = result;
     res.send(returnData);
   });
+});
+
+app.post("/students/addToDrive",(req,res)=>{
+  let data = req.body;
+  let drive_id = data.data;
+  let students = data.students;
+  let columnValues=[];
+  let values=[];
+  students.forEach(student=>{
+    columnValues.push([student.HTNO,drive_id]);
+  });
+  console.log(columnValues);
+  let sql = "insert into drive_process (HTNO,drive_id) values ?";
+  con.query(sql,[columnValues],(err,result)=>{
+    if (err) throw err;
+    console.log(result);
+  })
 });
 
 app.listen(port);
