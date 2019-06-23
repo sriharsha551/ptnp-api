@@ -149,24 +149,46 @@ app.post("/students/addToDrive",(req,res)=>{
   let data = req.body.data;
   let drive_id = data.driveToAdd;
   let students = data.students;
+  let rollno=[];
   let columnvalues=[];
-  let values=[];
+  let duplicates=[];
   students.forEach(student=>{
     columnvalues.push([student.HTNO,drive_id]);
   });
-  
   let duplicate = "select HTNO,drive_id,count(*) from drive_process group by HTNO,drive_id having count(*) >=1";
   con.query(duplicate,(err,result)=>{
     result=JSON.parse(JSON.stringify(result));
-    console.log(result[0]);
-    let sql = "insert into drive_process (HTNO,drive_id) values ?";
-    con.query(sql,[columnvalues],(err,result)=>{
+    if(result.length===0){
+      let sql = "insert into drive_process (HTNO,drive_id) values ?";
+      con.query(sql,[columnvalues],(err,result)=>{
       if (err) throw err;
-      returnData.status="Sucessfully added to drive!";
-      res.send(returnData);
     });
+  }
+  else{
+    result.forEach(ele=>{
+      rollno.push(ele.HTNO);
+      duplicates.push(ele.drive_id);
+    })
+    columnvalues.forEach(entry=>{
+      if(rollno.includes(entry[0])===false){
+        let sql="insert into drive_process (HTNO,drive_id) values('"+entry[0]+"','"+entry[1]+"')";
+        con.query(sql,(err,result)=>{
+          if(err) throw err;
+        });
+      }
+      if(rollno.includes(entry[0]===true)){
+        if(duplicates.includes(drive_id)===false){
+          let sql="insert into drive_process (HTNO,drive_id) values('"+entry[0]+"','"+entry[1]+"')";
+          con.query(sql,(err,result)=>{
+            if(err) throw err;
+        });
+        }
+      }
+    })
+  }
   });
-  
+  returnData.status="Successfully Added to Drive!!";
+    res.send(returnData);
 });
 
 app.post("/drives/add", upload.none(), (req, res) => {
