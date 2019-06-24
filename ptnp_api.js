@@ -57,7 +57,7 @@ app.post("/students/add", upload.array("file", 12), (req, res) => {
 
 app.get("/student/details", upload.none(), (req, res) => {
   let returnData = {};
-  let sql = "select * from student_details";
+  let sql = "select s.*,d.company,r.round_name,dp.selected,dp.offer_letter from student_details s inner join drive_process dp on HTNO='"+data.HTNO+"'inner join drive_details d on d.drive_id=dp.drive_id inner join rounds r  on r.id=dp.round_id where HTNO='"+data.HTNO+"'";
   let data = [];
   con.query(sql, (err, result) => {
     if (err) throw err;
@@ -145,6 +145,7 @@ app.post("/students/filter", (req, res) => {
 });
 
 app.post("/students/addToDrive",(req,res)=>{
+  console.log(req.body.data);
   let returnData={};
   let data = req.body.data;
   let drive_id = data.driveToAdd;
@@ -424,17 +425,26 @@ app.post("/drives/olddrive", (req, res) => {
 app.post("/round/add", function(req, res) {
   let returnData = {};
   let data = req.body;
+  let sql = "select count(round_name) from rounds where round_name='"+data.data+"'and delete_status='0'";
+  con.query(sql,(error,count)=>{
+    if(error) throw error;
+    count=count[0]['count(round_name)'];
+  if(count===0){
   let sql = "insert into rounds (round_name) values ('" + data.data + "')";
   con.query(sql, (err, result) => {
     if (err) throw err;
+    returnData.status = "Rounds added Successfully";
   });
-  returnData.status = "Rounds added Successfully";
+  }
+  else
+  returnData.status = "Rounds cannot be Added";
   res.send(returnData);
+});
 });
 
 app.get("/rounds", function(req, res) {
   let returnData = {};
-  con.query("select * from rounds", (err, result) => {
+  con.query("select * from rounds where delete_status='0'", (err, result) => {
     if (err) throw err;
     returnData = { result: JSON.parse(JSON.stringify(result)) };
     res.send(returnData);
@@ -444,6 +454,7 @@ app.get("/rounds", function(req, res) {
 app.post("/rounds/delete", (req, res) => {
   let returnData = {};
   data = req.body;
+  console.log(data);
   con.query(
     "update rounds set delete_status ='1' where id = (" + data.id + ") ",
     (err, result) => {
@@ -459,9 +470,87 @@ app.get("/passing/year", (req, res) => {
   let sql = "select * from passing_out_year";
   con.query(sql, (err, result) => {
     returnData.result = JSON.parse(JSON.stringify(result));
+    console.log(returnData.result);
     res.send(returnData);
   });
 });
 
+app.post("/drives/drivesList", (req, res) => {
+  let date = req.body.date.split("/");
+  date = [date[2], date[1], date[0]].join("-");
+  let values = [];
+  sql =
+    "select drive_id,company from drive_details where date_of_drive='" +
+    date +
+    "'";
+  con.query(sql, (err, drive_list) => {
+    if (err) throw err;
+    drive_list.forEach(element => {
+      values.push(JSON.parse(JSON.stringify(element)));
+    });
+    res.send(values);
+  });
+});
+
+app.post("/drives/performance/driveDetails", (req, res) => {
+  returnData = {};
+  values = [];
+  values1 = [];
+  data = req.body;
+  let drive_id = data.drive_id;
+  sql1 =
+    "select dp.HTNO,r.round_name,dp.attendance_status,dp.selected,dp.offer_letter from drive_process dp inner join rounds r on dp.drive_id='" +
+    drive_id +
+    "' and r.id = dp.round_id";
+  con.query(sql1, (err, selected) => {
+    if (err) throw err;
+    selected.forEach(ele => {
+      values.push(JSON.parse(JSON.stringify(ele)));
+    });
+    returnData.students = values;
+    sql =
+      "select r.round_name from drive_rounds dr inner join rounds r on r.id=dr.round_id and drive_id='" +
+      drive_id +
+      "'";
+    con.query(sql, (err, result) => {
+      if (err) throw err;
+      result.forEach(ele => {
+        values1.push(JSON.parse(JSON.stringify(ele)));
+      });
+      returnData.rounds = values1;
+      res.send(returnData);
+    });
+  });
+});
+
+app.post("/drives/performance/editDetail", (req, res) => {
+  round_name = req.body.round_name;
+  attendance_status = req.body.attendanceStatus;
+  HTNO = req.body.HTNO;
+  drive_id = req.body.drive_id;
+  selected = req.body.selected;
+  offer_letter = req.body.offer_letter;
+  console.log(offer_letter==="Submitted");
+  if (selected === "Selected") selected = 1;
+  else selected = 2;
+  if (offer_letter === "Submitted") offer_letter = 1;
+  else offer_letter = 2;
+
+  if (attendance_status === "P") attendance_status = 2;
+  else attendance_status = 1;
+  sql = "select id from rounds where round_name='" + round_name + "'";
+  con.query(sql, (err, round_id) => {
+    if (err) throw err;
+    round_id = JSON.parse(JSON.stringify(round_id));
+    round_id = round_id[0].id;
+    console.log(offer_letter);
+    sql2 =
+      "update drive_process set round_id='"+round_id +"',attendance_status='" +attendance_status +"',selected='"+selected+"',offer_letter='"+offer_letter+"' where drive_id='" +drive_id +"'and HTNO='" +HTNO +"'";
+    con.query(sql2, (error, result) => {
+      if (error) throw error;
+    });
+  });
+  res.send("successfull");
+});
 
 app.listen(port);
