@@ -38,7 +38,6 @@ app.post("/students/add", upload.array("file", 12), (req, res) => {
       records[i][index] = getJsDateFromExcel(records[i][index]);
     }
     let values = [records[1], records[2], records[3]];
-    console;
     let sql = "insert into student_details (" + records[0] + ") values ? on duplicate key update "+ 
     "NAME=values(NAME),BRANCH_CODE=values(BRANCH_CODE),GENDER = values(GENDER),BTECH_CGPA=values(BTECH_CGPA), "+
     "BTECH_PERCENTAGE=values(BTECH_PERCENTAGE),YOP_BTECH=values(YOP_BTECH),INTER_PERCENTAGE=values(INTER_PERCENTAGE), "+
@@ -145,7 +144,6 @@ app.post("/students/filter", (req, res) => {
 });
 
 app.post("/students/addToDrive",(req,res)=>{
-  console.log(req.body.data);
   let returnData={};
   let data = req.body.data;
   let drive_id = data.driveToAdd;
@@ -329,9 +327,9 @@ app.post("/drives/modify", (req, res) => {
     "select id from drive_rounds where drive_id=" + data.drive_id + "",
     (err, ids) => {
       ids = JSON.parse(JSON.stringify(ids));
-      let noOfRounds = data.rounds.length;
+      let noOfRounds = data.roundIds.length;
       if (noOfRounds > ids.length) {
-        values = [[data.drive_id, data.rounds[noOfRounds - 1]]];
+        values = [[data.drive_id, data.roundIds[noOfRounds - 1]]];
         con.query("insert into drive_rounds (drive_id,round_id) values ?", [
           values
         ]);
@@ -357,7 +355,7 @@ app.post("/drives/modify", (req, res) => {
         for (let i = 0; i < id_list.length; i++) {
           let roundQuery =
             "update drive_rounds set round_id =" +
-            data.rounds[i] +
+            data.roundIds[i] +
             " where id=" +
             id_list[i] +
             "";
@@ -377,12 +375,12 @@ app.post("/drives/olddrive", (req, res) => {
   let data = req.body.data;
   let noOfDrives;
   let sql =
-    "select * from drive_details where YEAR(date_of_drive)=" + data.year + "";
+    "select * from drive_details where YEAR(date_of_drive)=" + data + "";
   con.query(sql, (err, result) => {
     if (err) throw err;
     olddriveData = JSON.parse(JSON.stringify(result));
     if (olddriveData.length === 0) {
-      returnData.result = driveData;
+      returnData.result = olddriveData;
       res.send(returnData);
     } else {
       noOfDrives = olddriveData.length;
@@ -454,7 +452,6 @@ app.get("/rounds", function(req, res) {
 app.post("/rounds/delete", (req, res) => {
   let returnData = {};
   data = req.body;
-  console.log(data);
   con.query(
     "update rounds set delete_status ='1' where id = (" + data.id + ") ",
     (err, result) => {
@@ -470,7 +467,6 @@ app.get("/passing/year", (req, res) => {
   let sql = "select * from passing_out_year";
   con.query(sql, (err, result) => {
     returnData.result = JSON.parse(JSON.stringify(result));
-    console.log(returnData.result);
     res.send(returnData);
   });
 });
@@ -530,7 +526,6 @@ app.post("/drives/performance/editDetail", (req, res) => {
   drive_id = req.body.drive_id;
   selected = req.body.selected;
   offer_letter = req.body.offer_letter;
-  console.log(offer_letter==="Submitted");
   if (selected === "Selected") selected = 1;
   else selected = 2;
   if (offer_letter === "Submitted") offer_letter = 1;
@@ -543,7 +538,6 @@ app.post("/drives/performance/editDetail", (req, res) => {
     if (err) throw err;
     round_id = JSON.parse(JSON.stringify(round_id));
     round_id = round_id[0].id;
-    console.log(offer_letter);
     sql2 =
       "update drive_process set round_id='"+round_id +"',attendance_status='" +attendance_status +"',selected='"+selected+"',offer_letter='"+offer_letter+"' where drive_id='" +drive_id +"'and HTNO='" +HTNO +"'";
     con.query(sql2, (error, result) => {
