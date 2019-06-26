@@ -47,7 +47,11 @@ app.post("/students/add", upload.array("file", 12), (req, res) => {
     "DOB=values(DOB),EAMCET_RANK=values(EAMCET_RANK),PARENT_NAME=values(PARENT_NAME),PARENT_MOBILE=values(PARENT_MOBILE), "+
     "ADDRESS=values(ADDRESS)";
     con.query(sql, [values], function(err) {
-      if (err) throw err;
+      if (err) {
+        returnData.error=err.code;
+        returnData.status = "Sorry! can not import students data!";
+        res.send(returnData);
+      }
     });
   });
   returnData.status = "Data Imported Successfully!";
@@ -75,7 +79,7 @@ app.post("/students/filter", (req, res) => {
     branch.push(parseInt(element));
   });
   branch = `${unescape(branch)}`;
-
+  if(data.eamcet_rank===null) data.eamcet_rank=1000000000;
   if (data.isSelected === "yes") {
     data.isSelected = "'0','1'";
   } else {
@@ -108,7 +112,21 @@ app.post("/students/filter", (req, res) => {
    +"and YOP_BTECH="+data.year_of_passing+" and selection_status in ("+data.isSelected+") and BRANCH_CODE in ("+branch+") ";
   
    con.query(sql, (err, result) => {
-    result = JSON.parse(JSON.stringify(result));
+    if (err) {
+      returnData.error=err.code;
+      returnData.result=[];
+      returnData.status = "Sorry! can not filter students!";
+      res.send(returnData);
+    }
+    else{
+      if(result.length===0){
+        returnData.error = "Invalid criteria!"
+        returnData.status = "No students to filter for given criteria!";
+        returnData.result=result;
+        res.send(returnData);
+      }
+      else{
+        result = JSON.parse(JSON.stringify(result));
     result.forEach(student => {
       if (student.SSC_GPA === null) {
         delete student.SSC_GPA;
@@ -139,7 +157,10 @@ app.post("/students/filter", (req, res) => {
       }
     });
     returnData.result = result;
+    returnData.status = "Filtered successfully!"
     res.send(returnData);
+    }
+  }
   });
 });
 
@@ -160,7 +181,14 @@ app.post("/students/addToDrive",(req,res)=>{
     if(result.length===0){
       let sql = "insert into drive_process (HTNO,drive_id) values ?";
       con.query(sql,[columnvalues],(err,result)=>{
-      if (err) throw err;
+        if (err) {
+          returnData.error=err.code;
+          returnData.status = "Sorry! can not add students to drive!";
+          res.send(returnData);
+        }
+        else{
+          returnData.status="Successfully added to drive!"
+        }
     });
   }
   else{
@@ -172,21 +200,34 @@ app.post("/students/addToDrive",(req,res)=>{
       if(rollno.includes(entry[0])===false){
         let sql="insert into drive_process (HTNO,drive_id) values('"+entry[0]+"','"+entry[1]+"')";
         con.query(sql,(err,result)=>{
-          if(err) throw err;
+          if (err) {
+            returnData.error=err.code;
+            returnData.status = "Sorry! can not add students to drive!";
+            res.send(returnData);
+          }
+          else{
+            returnData.status="Successfully added to drive!"
+          }
         });
       }
       if(rollno.includes(entry[0]===true)){
         if(duplicates.includes(drive_id)===false){
           let sql="insert into drive_process (HTNO,drive_id) values('"+entry[0]+"','"+entry[1]+"')";
           con.query(sql,(err,result)=>{
-            if(err) throw err;
+            if (err) {
+              returnData.error=err.code;
+              returnData.status = "Sorry! can not add students to drive!";
+              res.send(returnData);
+            }
+            else{
+              returnData.status="Successfully added to drive!"
+            }
         });
         }
       }
     })
   }
   });
-  returnData.status="Successfully Added to Drive!!";
     res.send(returnData);
 });
 
@@ -202,17 +243,35 @@ app.post("/drives/add", upload.none(), (req, res) => {
   let drive_id;
   let sql = "insert into drive_details (" + columns + ") values ? ";
   con.query(sql,[values],(err, result) => {
-    if (err) throw err;
+    if (err) {
+      returnData.error=err.code;
+      returnData.status = "Sorry! can not add drive!";
+      res.send(returnData);
+    }
+    else{
     drive_id=result.insertId;
-    round_id.forEach(id=>{
+    let noOfRounds = round_id.length;
+    round_id.forEach((id,i)=>{
       let sql = "insert into drive_rounds (drive_id,round_id) values('"+drive_id+"','"+id+"')";
       con.query(sql,(err,result)=>{
-        if (err) throw err;
+        if (err) {
+          returnData.error=err.code;
+          returnData.status = "Sorry! can not add drive!";
+          res.send(returnData);
+        }
+        else{
+          returnData.status = "Successfully added!";
+          if(noOfRounds-1 === i){
+            update();
+          }
+        }
       });
     });
+  }
   });
-  returnData.status = "Successfully added!";
-  res.send(returnData);
+  function update(){
+    res.send(returnData);
+  }
 });
 
 app.get("/drives/upcoming", (req, res) => {
@@ -225,16 +284,21 @@ app.get("/drives/upcoming", (req, res) => {
     date +
     "', '%Y-%m-%d') and delete_status='0'";
   con.query(sql, (err, result) => {
-    if (err) throw err;
+    if (err) {
+      returnData.error=err.code;
+      returnData.status = "Sorry! Error occured";
+      res.send(returnData);
+    }
     driveData = JSON.parse(JSON.stringify(result));
     if (driveData.length === 0) {
       returnData.result = driveData;
+      res.status = "No upcoming drives!"
+      res.result =driveData;
       res.send(returnData);
     } else {
       noOfDrives = driveData.length;
       for (let i = 0; i < driveData.length; i++) {
         let drive_id = driveData[i].drive_id;
-        let noOfRounds = driveData[i].no_of_rounds;
         let sql =
           "select round_id from drive_rounds where drive_id =" +
           drive_id +
@@ -242,6 +306,7 @@ app.get("/drives/upcoming", (req, res) => {
         con.query(sql, (error, resData) => {
           let round_ids = JSON.parse(JSON.stringify(resData));
           let round_list = [];
+          let noOfRounds = resData.length;
           for (let j = 0; j < round_ids.length; j++) {
             let sql =
               "select id,round_name from rounds where id=" +
@@ -249,7 +314,6 @@ app.get("/drives/upcoming", (req, res) => {
               "";
             con.query(sql, (err, result) => {
               round_list.push(result[0]);
-              +9;
               driveData[i]["rounds"] = round_list;
               if (noOfRounds - 1 === j) {
                 updateDrive(driveData, i);
@@ -263,6 +327,7 @@ app.get("/drives/upcoming", (req, res) => {
   function updateDrive(driveData, i) {
     if (i === noOfDrives - 1) {
       returnData.result = driveData;
+      res.status= "Upcoming drives!"
       res.send(returnData);
     }
   }
@@ -324,22 +389,14 @@ app.post("/drives/modify", (req, res) => {
     if (err) throw err;
   });
   con.query(
-    "select id from drive_rounds where drive_id=" + data.drive_id + "",
+    "select id from drive_rounds where drive_id=" + data.drive_id + " and delete_status='0'",
     (err, ids) => {
       ids = JSON.parse(JSON.stringify(ids));
       let noOfRounds = data.roundIds.length;
       if (noOfRounds > ids.length) {
         values = [[data.drive_id, data.roundIds[noOfRounds - 1]]];
-        con.query("insert into drive_rounds (drive_id,round_id) values ?", [
-          values
-        ]);
-        con.query(
-          "update drive_details set no_of_rounds=" +
-            noOfRounds +
-            " where drive_id=" +
-            data.drive_id +
-            ""
-        );
+        con.query("insert into drive_rounds (drive_id,round_id) values ?", [values]);
+        con.query("update drive_details set no_of_rounds=" +noOfRounds +" where drive_id=" +data.drive_id +"");
       } else {
         let id_list = [];
         ids.forEach(element => {
@@ -377,7 +434,7 @@ app.post("/drives/olddrive", (req, res) => {
   let sql =
     "select * from drive_details where YEAR(date_of_drive)=" + data + "";
   con.query(sql, (err, result) => {
-    if (err) throw err;
+    if (err){}
     olddriveData = JSON.parse(JSON.stringify(result));
     if (olddriveData.length === 0) {
       returnData.result = olddriveData;
@@ -401,7 +458,6 @@ app.post("/drives/olddrive", (req, res) => {
               "";
             con.query(sql, (err, result) => {
               round_list.push(result[0]);
-              +9;
               olddriveData[i]["rounds"] = round_list;
               if (noOfRounds - 1 === j) {
                 updateDrive(olddriveData, i);
@@ -464,10 +520,24 @@ app.post("/rounds/delete", (req, res) => {
 
 app.get("/passing/year", (req, res) => {
   let returnData = {};
-  let sql = "select * from passing_out_year";
+  let sql = "select distinct YEAR(date_of_drive) from drive_details where delete_status='0' ";
   con.query(sql, (err, result) => {
-    returnData.result = JSON.parse(JSON.stringify(result));
+    if(err){
+      returnData.error = err.code;
+      returnData.status = "No years present!";
+      returnData.result = result;
+      res.send(returnData);
+    }
+    else{
+    result = JSON.parse(JSON.stringify(result));
+    let resultYear = [];
+    result.forEach((ele)=>{
+      resultYear.push(ele['YEAR(date_of_drive)']);
+    })
+    returnData.result = resultYear;
+    returnData.status = "Successfull!"
     res.send(returnData);
+    }
   });
 });
 
