@@ -4,6 +4,7 @@ const cors = require("cors");
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
 const bodyParser = require("body-parser");
+const sha256 = require('sha256');
 const { getJsDateFromExcel } = require("excel-date-to-js");
 let mysql = require("mysql");
 let xlsx = require("node-xlsx");
@@ -22,6 +23,94 @@ con.connect(function(err) {
 
 app.use(cors());
 app.use(bodyParser.json());
+
+app.post("/login/page",(req,res)=>{
+  let returnData ={};
+  let data = req.body.data;
+  data.password= sha256(data.password);
+  let sql = "select user_password,user_role from users where user_name = '"+data.user+"' and delete_status='0'";
+  con.query(sql,(err,result)=>{
+    if (err || result.length===0){
+      returnData.status = "User does not exist!";
+      returnData.login = false;
+      res.send(returnData);
+    }
+    else if(data.password === result[0]['user_password']){
+      returnData.role =result[0]['user_role'];
+      returnData.login = true;
+      res.send(returnData);
+    }
+    else{
+      returnData.login=false;
+      res.send(returnData);
+    }
+  });
+});
+
+app.post("/user/add", (req, res) => {
+  let returnData = {};
+  let data = req.body.data;
+  data.password = sha256(data.password);
+  let sql = "select user_name from users where delete_status='0'";
+  con.query(sql, (err, userResult) => {
+    let userList = [];
+    userResult.forEach(user => {
+      userList.push(user.user_name);
+    });
+    if (userList.includes(data.user)) {
+      returnData.status = "User already exists!";
+      res.send(returnData);
+    }
+    else{
+      let sql =
+        "insert into users (user_name,user_password,user_role) values('"+data.user +"','" +data.password+"','" +data.role +"')";
+      con.query(sql, (err, result) => {
+        if (err) {
+          returnData.error = err.code;
+          returnData.status = "Sorry! can not add user!";
+          res.send(returnData);
+        }
+        else{
+          returnData.status = "User added successfully!";
+          res.send(returnData);
+        }
+      });
+    }
+  });
+});
+
+app.get("/users/all",(req,res)=>{
+  let returnData = {};
+  let sql = "select user_id,user_name from users where delete_status='0'";
+  con.query(sql, (err, userResult) => {
+    if(err || userResult.length===0){
+      returnData.error = err.code;
+      returnData.status = "No users found!";
+      returnData.result = userResult;
+    }
+    else{
+    returnData.result =JSON.parse(JSON.stringify(userResult));
+    res.send(returnData);
+  }
+});
+});
+
+app.post("/user/reset",(req,res)=>{
+  let returnData = {};
+  let data = req.body.data;
+  let sql = "update users set user_password = '"+sha256(data.password)+"' where user_id = "+data.selected_user+" ";
+  con.query(sql,(err,result)=>{
+    if(err){
+      returnData.error = err.code;
+      returnData.status = "Password reset failed!";
+      res.send(returnData);
+    }
+    else{
+      returnData.status = "Password reset successfull!";
+      res.send(returnData);
+    }
+  });
+});
 
 app.post("/students/add", upload.array("file", 12), (req, res) => {
   let returnData = {};
