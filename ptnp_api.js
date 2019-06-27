@@ -28,7 +28,7 @@ app.post("/login/page",(req,res)=>{
   let returnData ={};
   let data = req.body.data;
   data.password= sha256(data.password);
-  let sql = "select user_password,user_role from users where user_name = '"+data.user+"' and delete_status='0'";
+  let sql = "select user_name,user_password,user_role from users where user_name = '"+data.user+"' and delete_status='0'";
   con.query(sql,(err,result)=>{
     if (err || result.length===0){
       returnData.status = "User does not exist!";
@@ -38,6 +38,7 @@ app.post("/login/page",(req,res)=>{
     else if(data.password === result[0]['user_password']){
       returnData.role =result[0]['user_role'];
       returnData.login = true;
+      returnData.user = result[0]['user_name'];
       res.send(returnData);
     }
     else{
@@ -107,6 +108,23 @@ app.post("/user/reset",(req,res)=>{
     }
     else{
       returnData.status = "Password reset successfull!";
+      res.send(returnData);
+    }
+  });
+});
+
+app.post("/user/delete",(req,res)=>{
+  let returnData = {};
+  let data = req.body.data;
+  let sql = "update users set delete_status='1' where user_id = "+data.userID+" ";
+  con.query(sql,(err,result)=>{
+    if(err){
+      returnData.error = err.code;
+      returnData.status = "Sorry! can not delete user!";
+      res.send(returnData);
+    }
+    else{
+      returnData.status = "User deleted!";
       res.send(returnData);
     }
   });
