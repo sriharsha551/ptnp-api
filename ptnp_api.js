@@ -24,6 +24,7 @@ con.connect(function(err) {
 app.use(cors());
 app.use(bodyParser.json());
 
+
 app.post("/login/page",(req,res)=>{
   let returnData ={};
   let data = req.body.data;
@@ -85,7 +86,6 @@ app.get("/users/all",(req,res)=>{
   let sql = "select user_id,user_name from users where delete_status='0'";
   con.query(sql, (err, userResult) => {
     if(err || userResult.length===0){
-      returnData.error = err.code;
       returnData.status = "No users found!";
       returnData.result = userResult;
     }
@@ -167,8 +167,8 @@ app.post("/students/add", upload.array("file", 12), (req, res) => {
 
 app.get("/student/details", upload.none(), (req, res) => {
   let returnData = {};
+  let data = req.body.data;
   let sql = "select s.*,d.company,r.round_name,dp.selected,dp.offer_letter from student_details s inner join drive_process dp on HTNO='"+data.HTNO+"'inner join drive_details d on d.drive_id=dp.drive_id inner join rounds r  on r.id=dp.round_id where HTNO='"+data.HTNO+"'";
-  let data = [];
   con.query(sql, (err, result) => {
     if (err) throw err;
     data.push(JSON.parse(JSON.stringify(result)));
