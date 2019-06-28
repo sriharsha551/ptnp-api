@@ -165,17 +165,79 @@ app.post("/students/add", upload.array("file", 12), (req, res) => {
   res.send(returnData);
 });
 
-app.get("/student/details", upload.none(), (req, res) => {
-  let returnData = {};
-  let data = req.body.data;
-  let sql = "select s.*,d.company,r.round_name,dp.selected,dp.offer_letter from student_details s inner join drive_process dp on HTNO='"+data.HTNO+"'inner join drive_details d on d.drive_id=dp.drive_id inner join rounds r  on r.id=dp.round_id where HTNO='"+data.HTNO+"'";
-  con.query(sql, (err, result) => {
-    if (err) throw err;
-    data.push(JSON.parse(JSON.stringify(result)));
-    returnData.result = data;
-    res.send(returnData);
-  });
+app.post('/student/details',(req,res)=>{
+  HTNO = req.body.HTNO;
+  let personal=[];
+  let drives=[];
+  let returnData={}
+  let sql="select *  from student_details where HTNO='"+HTNO+"'";
+  con.query(sql,(err,result)=>{
+    if(err) throw err;
+    personal.push(JSON.parse(JSON.stringify(result)));
+
+  let sql2 = "select d.company,r.round_name,dp.selected,dp.offer_letter from drive_process "+
+"dp inner join drive_details d on d.drive_id=dp.drive_id inner join "+
+"rounds r on r.id=dp.round_id where dp.HTNO='"+HTNO+"'";
+  con.query(sql2,(err,result)=>{
+    if(err) throw err;
+    drives.push(JSON.parse(JSON.stringify(result)));
+    returnData.personal=personal[0][0];
+    returnData.drive=drives[0];
+    let options={year:'numeric',month:'2-digit',day:'2-digit'};
+    returnData.personal.DOB=new
+Date(returnData.personal.DOB).toLocaleDateString('en-GB',options);
+    delete returnData.personal.SNO;
+    res.send(returnData)
+ });
+ });
 });
+
+app.post('/student/editDetail',(req,res)=>{
+  data=req.body;
+  let date=data.DOB.split('/');
+  DOB = [date[2], date[0], date[1]].join("-");
+    sql= "update student_details set NAME='"+data.NAME+"',BRANCH_CODE='"+data.BRANCH_CODE+"',GENDER='"+data.GENDER+" "+
+    "',BTECH_CGPA='"+data.BTECH_CGPA+"',BTECH_PERCENTAGE='"+data.BTECH_PERCENTAGE+"', "+
+    "YOP_BTECH='"+data.YOP_BTECH+"',INTER_PERCENTAGE='"+data.INTER_PERCENTAGE+"',INTER_CGPA='"+data.INTER_CGPA+"', "+
+    "YOP_INTER='"+data.YOP_INTER+"',SSC_PERCENTAGE='"+data.SSC_PERCENTAGE+"',SSC_GPA='"+data.SSC_GPA+"', "+
+    "YOP_SSC='"+data.YOP_SSC+"',BTECH_BACKLOGS='"+data.BTECH_BACKLOGS+"',EMAIL='"+data.EMAIL+"',MOBILE='"+data.MOBILE+"',NPTEL_CERTIFICATIONS='"+data.NPTEL_CERTIFICATIONS+"', "+
+    "OTHER_CERTIFICATIONS='"+data.OTHER_CERTIFICATIONS+"',DOB=DATE_FORMAT('"+DOB+"','%Y-%m-%d'),EAMCET_RANK='"+data.EAMCET_RANK+"', "+
+    "PARENT_NAME='"+data.PARENT_NAME+"',PARENT_MOBILE='"+data.PARENT_MOBILE+"',ADDRESS='"+data.ADDRESS+"'where HTNO='"+data.HTNO+"'";
+     con.query(sql,(err,result)=>{
+      if(err) throw err;
+    })
+    res.send("updated sucessfully");
+})
+
+app.post('/search/student/driveEditDetail',(req,res)=>{
+  console.log(req.body);
+  let data=req.body;
+  let HTNO="17A31A0546";
+  data.forEach((ele)=>{
+    sql="select id from rounds where round_name='"+ele.round_name+"'";
+    con.query(sql,(err,round_id)=>{
+      if(err) throw err;
+      let sql2 = "update drive_process  set selected='"+ele.selected+"',offer_letter='"+ele.offer_letter+"',round_id='"+round_id[0].id+"'where HTNO ='"+HTNO+"'";
+      con.query(sql2,(error,result)=>
+      {
+        if(error) throw error
+      })
+    })
+  })
+  res.send("success");
+})
+app.post('/drive/rounds',(req,res)=>{
+  let  drive_name=req.body.drive_name;
+  sql="select r.round_name from rounds r inner join drive_details d "+
+"inner join drive_rounds dr on r.id=dr.round_id and "+
+"d.drive_id=dr.drive_id where d.company='"+drive_name+"'";
+  con.query(sql,(err,result)=>
+  {
+    if(err) throw err;
+     res.send(JSON.parse(JSON.stringify(result)));
+  })
+})
+
 
 app.post("/students/filter", (req, res) => {
   let returnData = {};
