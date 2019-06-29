@@ -179,15 +179,21 @@ app.post('/student/details',(req,res)=>{
 "dp inner join drive_details d on d.drive_id=dp.drive_id inner join "+
 "rounds r on r.id=dp.round_id where dp.HTNO='"+HTNO+"'";
   con.query(sql2,(err,result)=>{
-    if(err) throw err;
+    if(err)
+    {
+      // returnData.error=err.code;
+      returnData.status="Sorry cannot get the data";
+    }
+    else{
     drives.push(JSON.parse(JSON.stringify(result)));
     returnData.personal=personal[0][0];
     returnData.drive=drives[0];
     let options={year:'numeric',month:'2-digit',day:'2-digit'};
-    returnData.personal.DOB=new
-Date(returnData.personal.DOB).toLocaleDateString('en-GB',options);
+    returnData.personal.DOB=new Date(returnData.personal.DOB).toLocaleDateString('en-GB',options);
     delete returnData.personal.SNO;
-    res.send(returnData)
+    returnData.status="Successfully imported data...";
+    }
+    res.send(returnData);
  });
  });
 });
@@ -204,27 +210,37 @@ app.post('/student/editDetail',(req,res)=>{
     "OTHER_CERTIFICATIONS='"+data.OTHER_CERTIFICATIONS+"',DOB=DATE_FORMAT('"+DOB+"','%Y-%m-%d'),EAMCET_RANK='"+data.EAMCET_RANK+"', "+
     "PARENT_NAME='"+data.PARENT_NAME+"',PARENT_MOBILE='"+data.PARENT_MOBILE+"',ADDRESS='"+data.ADDRESS+"'where HTNO='"+data.HTNO+"'";
      con.query(sql,(err,result)=>{
-      if(err) throw err;
-    })
-    res.send("updated sucessfully");
+      if(err) 
+      res.send("Cannot update data in the database");
+      else 
+      res.send("Updated sucessfully");
+     })
 })
 
 app.post('/search/student/driveEditDetail',(req,res)=>{
   console.log(req.body);
   let data=req.body;
-  let HTNO="17A31A0546";
+  let HTNO=req.body.HTNO;
   data.forEach((ele)=>{
     sql="select id from rounds where round_name='"+ele.round_name+"'";
     con.query(sql,(err,round_id)=>{
-      if(err) throw err;
+      if(err) 
+        res.send("Cannot find Round name!!!");
+      else{
       let sql2 = "update drive_process  set selected='"+ele.selected+"',offer_letter='"+ele.offer_letter+"',round_id='"+round_id[0].id+"'where HTNO ='"+HTNO+"'";
       con.query(sql2,(error,result)=>
       {
-        if(error) throw error
+        if(error)
+        {
+          res.send("Cannot update details");
+        }
+        else{
+          res.send("success");
+        }
       })
+      }
     })
   })
-  res.send("success");
 })
 app.post('/drive/rounds',(req,res)=>{
   let  drive_name=req.body.drive_name;
@@ -233,7 +249,8 @@ app.post('/drive/rounds',(req,res)=>{
 "d.drive_id=dr.drive_id where d.company='"+drive_name+"'";
   con.query(sql,(err,result)=>
   {
-    if(err) throw err;
+    if(err) res.send("Cannot import the data");
+    else
      res.send(JSON.parse(JSON.stringify(result)));
   })
 })
@@ -650,18 +667,19 @@ app.post("/round/add", function(req, res) {
   let data = req.body;
   let sql = "select count(round_name) from rounds where round_name='"+data.data+"'and delete_status='0'";
   con.query(sql,(error,count)=>{
-    if(error) throw error;
+    if(error) res.send("cannot find round name");
+    else{
     count=count[0]['count(round_name)'];
-  if(count===0){
-  let sql = "insert into rounds (round_name) values ('" + data.data + "')";
-  con.query(sql, (err, result) => {
-    if (err) throw err;
-    returnData.status = "Rounds added Successfully";
+    if(count===0){
+    let sql = "insert into rounds (round_name) values ('" + data.data + "')";
+    con.query(sql, (err, result) => {
+    if (err) res.send("cannot insert rounds");
+    else{
+      res.send("Rounds added successfully");
+    }
   });
-  }
-  else
-  returnData.status = "Rounds cannot be Added";
-  res.send(returnData);
+}
+}
 });
 });
 
