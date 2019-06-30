@@ -441,7 +441,7 @@ app.post("/students/addToDrive",(req,res)=>{
           }
         });
       }
-      if(rollno.includes(entry[0]===true)){
+      else if(rollno.includes(entry[0])===true){
         if(duplicates.includes(drive_id)===false){
           let sql="insert into drive_process (HTNO,drive_id) values('"+entry[0]+"','"+entry[1]+"')";
           con.query(sql,(err,result)=>{
