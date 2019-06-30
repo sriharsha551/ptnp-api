@@ -13,7 +13,7 @@ const port = 5000;
 let con = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "sriharsha12345",
+  password: "koushik@999",
   database: "pragati_tnp"
 });
 
@@ -187,9 +187,13 @@ app.post('/student/details',(req,res)=>{
   let returnData={}
   let sql="select *  from student_details where HTNO='"+HTNO+"'";
   con.query(sql,(err,result)=>{
-    if(err) throw err;
+    if(err) {
+      returnData.status="Sorry ! Cannot find student";
+      returnData.personal=personal[0];
+      returnData.drive=drives;
+    }
+    else{
     personal.push(JSON.parse(JSON.stringify(result)));
-
   let sql2 = "select d.company,r.round_name,dp.selected,dp.offer_letter from drive_process "+
 "dp inner join drive_details d on d.drive_id=dp.drive_id inner join "+
 "rounds r on r.id=dp.round_id where dp.HTNO='"+HTNO+"'";
@@ -197,7 +201,9 @@ app.post('/student/details',(req,res)=>{
     if(err)
     {
       // returnData.error=err.code;
-      returnData.status="Sorry cannot get the data";
+      returnData.status="Sorry cannot get the data"; 
+      returnData.personal=personal[0][0];
+      returnData.drive=drives;
     }
     else{
     drives.push(JSON.parse(JSON.stringify(result)));
@@ -208,12 +214,15 @@ app.post('/student/details',(req,res)=>{
     delete returnData.personal.SNO;
     returnData.status="Successfully imported data...";
     }
-    res.send(returnData);
+    
  });
+}
+res.send(returnData);
  });
 });
 
 app.post('/student/editDetail',(req,res)=>{
+  returnData={};
   data=req.body;
   let date=data.DOB.split('/');
   DOB = [date[2], date[0], date[1]].join("-");
@@ -238,9 +247,11 @@ if(data.SSC_GPA===null)
     "PARENT_NAME='"+data.PARENT_NAME+"',PARENT_MOBILE='"+data.PARENT_MOBILE+"',ADDRESS='"+data.ADDRESS+"'where HTNO='"+data.HTNO+"'";
      con.query(sql,(err,result)=>{
       if(err) 
-        throw err;
+        returnData.status="Sorry!Details Cannot be updated";
+      else
+        returnData.status="Successfully updated";
      })
-     res.send("successful");
+     res.send(returnData);
 })
 
 app.post('/search/student/driveEditDetail',(req,res)=>{
@@ -252,25 +263,26 @@ app.post('/search/student/driveEditDetail',(req,res)=>{
       selection_staus++;
     }
     let sql="select id from rounds where round_name='"+ele.round_name+"'";
-    con.query(sql,(err,round_id)=>{
-      if(err) 
-        throw err;
+    con.query(sql);
       let sql2 = "update drive_process  set selected='"+ele.selected+"',offer_letter='"+ele.offer_letter+"',round_id='"+round_id[0].id+"'where HTNO ='"+HTNO+"'";
       con.query(sql2,(error,result)=>
       {
         if(error)
         {
-          throw error;
+          returnData.status="Sorry!Cannot updated";
         }
+        else{
         if(selection_staus>=1){
           let sql = "update student_details set selection_status = '1' where HTNO = '"+HTNO+"' ";
           con.query(sql);
+          returnData.status="Successfull";
         }
+      }
       })
     })
+    res.send(returnData);
   })
-  res.send("sucess");
-})
+
 
 app.post("/students/filter", (req, res) => {
   let returnData = {};
@@ -703,22 +715,37 @@ app.post('/drive/rounds',(req,res)=>{
 "d.drive_id=dr.drive_id where d.company='"+drive_name+"'";
   con.query(sql,(err,result)=>
   {
-    if(err) throw err;
-    res.send(JSON.parse(JSON.stringify(result)));
+    if(err||result.length===0){
+      returnData.status="Sorry!Cannot find round name";
+      returnData.result=[];
+    }
+    else{
+      returnData.status="Successfull";
+    returnData.result=JSON.parse(JSON.stringify(result));
+    }
   })
+  res.send(returnData);
 })
 
 app.post("/drives/drivesList", (req, res) => {
+  let returnData={};
   let data = req.body.data;
   date = data.date.split("/");
   date = [date[2], date[1], date[0]].join("-");
   let values = [];
   sql ="select drive_id,company from drive_details where date_of_drive= '"+date +"'";
   con.query(sql, (err, drive_list) => {
-    if (err) throw err;
+    if (err || drive_list.length===0){
+      returnData.status="Sorry! No drives are available";
+      returnData.values=values;
+    }
+    else{
     drive_list.forEach(element => {
       values.push(JSON.parse(JSON.stringify(element)));
+      returnData.values=values;
+      returnData.status="Successful";
     });
+  }
     res.send(values);
   });
 });
@@ -731,24 +758,38 @@ app.post("/drives/performance/driveDetails", (req, res) => {
   let drive_id = data.drive_id;
   sql1 ="select dp.HTNO,r.round_name,dp.attendance_status,dp.selected,dp.offer_letter from drive_process dp inner join rounds r on dp.drive_id='"+drive_id +"' and r.id = dp.round_id";
   con.query(sql1, (err, selected) => {
-    if (err) throw err;
+    if (err||selected.length===0)
+    {
+        returnData.status="Sorry! There are no students";
+        returnData.students = values;
+        returnData.rounds=values1;
+    } 
+    else{
     selected.forEach(ele => {
       values.push(JSON.parse(JSON.stringify(ele)));
     });
     returnData.students = values;
     sql ="select r.round_name from drive_rounds dr inner join rounds r on r.id=dr.round_id and drive_id='" +drive_id +"'";
     con.query(sql, (err, result) => {
-      if (err) throw err;
+      if (err||result.length===0) {
+        returnData.status="Sorry ! NO round is present";
+        returnData.rounds = values1;
+      }
+      else{
       result.forEach(ele => {
         values1.push(JSON.parse(JSON.stringify(ele)));
       });
       returnData.rounds = values1;
-      res.send(returnData);
+      returnData.status = "Successfull";
+    }
     });
+  }
   });
+  res.send(returnData);
 });
 
 app.post("/drives/performance/editDetail", (req, res) => {
+  returnData={};
   round_name = req.body.round_name;
   attendance_status = req.body.attendanceStatus;
   HTNO = req.body.HTNO;
@@ -764,19 +805,27 @@ app.post("/drives/performance/editDetail", (req, res) => {
   else attendance_status = 1;
   sql = "select id from rounds where round_name='" + round_name + "'";
   con.query(sql, (err, round_id) => {
-    if (err) throw err;
+    if (err||round_id[0].length===0) {
+      returnData.status="Sorry! No round present";
+    }
+    else{
     round_id = JSON.parse(JSON.stringify(round_id));
     round_id = round_id[0].id;
     sql2 ="update drive_process set round_id='"+round_id +"',attendance_status='" +attendance_status +"',selected='"+selected+"',offer_letter='"+offer_letter+"' where drive_id='" +drive_id +"'and HTNO='" +HTNO +"'";
     con.query(sql2, (error, result) => {
-      if (error) throw error;
+      if (error) 
+        returnData.status="Sorry !Failed to update";
+      else{
       if(selected === 1){
         let sql = "update student_details set selection_status = '1' where HTNO = '"+HTNO+"' ";
         con.query(sql);
+        returnData.status="Successfully updated";
       }
+    }
     });
+  }
   });
-  res.send("successfull");
+  res.send(returnData);
 });
 
 app.get("/drives/special",(req,res)=>{
