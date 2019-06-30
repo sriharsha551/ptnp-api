@@ -18,7 +18,9 @@ let con = mysql.createConnection({
 });
 
 con.connect(function(err) {
-  if (err) throw err;
+  if (err) {
+    console.log(err);
+  }
 });
 
 app.use(cors());
@@ -31,7 +33,14 @@ app.post("/login/page",(req,res)=>{
   data.password= sha256(data.password);
   let sql = "select user_name,user_password,user_role from users where user_name = '"+data.user+"' and delete_status='0'";
   con.query(sql,(err,result)=>{
-    if (err || result.length===0){
+    if (err){
+      returnData.error = err.code;
+      returnData.status = "Error!";
+      returnData.login = false;
+      res.send(returnData);
+    }
+    else if (result.length === 0){
+      returnData.error = err.code;
       returnData.status = "User does not exist!";
       returnData.login = false;
       res.send(returnData);
@@ -44,6 +53,7 @@ app.post("/login/page",(req,res)=>{
     }
     else{
       returnData.login=false;
+      returnData.status = "Sorry! Wrong password!"
       res.send(returnData);
     }
   });
@@ -85,8 +95,13 @@ app.get("/users/all",(req,res)=>{
   let returnData = {};
   let sql = "select user_id,user_name from users where delete_status='0'";
   con.query(sql, (err, userResult) => {
-    if(err || userResult.length===0){
-      returnData.status = "No users found!";
+    if(err){
+      returnData.error = err.code;
+      returnData.status = "Error!";
+      returnData.result = userResult;
+    }
+    else if (userResult.length === 0){
+      returnData.status = "No users!";
       returnData.result = userResult;
     }
     else{
@@ -202,6 +217,18 @@ app.post('/student/editDetail',(req,res)=>{
   data=req.body;
   let date=data.DOB.split('/');
   DOB = [date[2], date[0], date[1]].join("-");
+  if(data.BTECH_PERCENTAGE===null)
+  data.BTECH_PERCENTAGE=0.00;
+if(data.INTER_CGPA===null)
+  data.INTER_CGPA=0.00;
+if(data.SSC_PERCENTAGE===null)
+  data.SSC_PERCENTAGE=0.00;
+if(data.BTECH_CGPA===null)
+  data.BTECH_PERCENTAGE=0.00;
+if(data.INTER_PERCENTAGE===null)
+  data.INTER_CGPA=0.00;
+if(data.SSC_GPA===null)
+  data.SSC_PERCENTAGE=0.00;
     sql= "update student_details set NAME='"+data.NAME+"',BRANCH_CODE='"+data.BRANCH_CODE+"',GENDER='"+data.GENDER+" "+
     "',BTECH_CGPA='"+data.BTECH_CGPA+"',BTECH_PERCENTAGE='"+data.BTECH_PERCENTAGE+"', "+
     "YOP_BTECH='"+data.YOP_BTECH+"',INTER_PERCENTAGE='"+data.INTER_PERCENTAGE+"',INTER_CGPA='"+data.INTER_CGPA+"', "+
@@ -211,66 +238,57 @@ app.post('/student/editDetail',(req,res)=>{
     "PARENT_NAME='"+data.PARENT_NAME+"',PARENT_MOBILE='"+data.PARENT_MOBILE+"',ADDRESS='"+data.ADDRESS+"'where HTNO='"+data.HTNO+"'";
      con.query(sql,(err,result)=>{
       if(err) 
-      res.send("Cannot update data in the database");
-      else 
-      res.send("Updated sucessfully");
+        throw err;
      })
+     res.send("successful");
 })
 
 app.post('/search/student/driveEditDetail',(req,res)=>{
-  console.log(req.body);
-  let data=req.body;
+  let data=req.body.ups;
   let HTNO=req.body.HTNO;
+  let selection_staus = 0;
   data.forEach((ele)=>{
-    sql="select id from rounds where round_name='"+ele.round_name+"'";
+    if(ele.selected==="Selected"){
+      selection_staus++;
+    }
+    let sql="select id from rounds where round_name='"+ele.round_name+"'";
     con.query(sql,(err,round_id)=>{
       if(err) 
-        res.send("Cannot find Round name!!!");
-      else{
+        throw err;
       let sql2 = "update drive_process  set selected='"+ele.selected+"',offer_letter='"+ele.offer_letter+"',round_id='"+round_id[0].id+"'where HTNO ='"+HTNO+"'";
       con.query(sql2,(error,result)=>
       {
         if(error)
         {
-          res.send("Cannot update details");
+          throw error;
         }
-        else{
-          res.send("success");
+        if(selection_staus>=1){
+          let sql = "update student_details set selection_status = '1' where HTNO = '"+HTNO+"' ";
+          con.query(sql);
         }
       })
-      }
     })
   })
+  res.send("sucess");
 })
-app.post('/drive/rounds',(req,res)=>{
-  let  drive_name=req.body.drive_name;
-  sql="select r.round_name from rounds r inner join drive_details d "+
-"inner join drive_rounds dr on r.id=dr.round_id and "+
-"d.drive_id=dr.drive_id where d.company='"+drive_name+"'";
-  con.query(sql,(err,result)=>
-  {
-    if(err) res.send("Cannot import the data");
-    else
-     res.send(JSON.parse(JSON.stringify(result)));
-  })
-})
-
 
 app.post("/students/filter", (req, res) => {
   let returnData = {};
   let data = req.body.data;
   let branch = [];
+  let selectedDrives = [];
   let btech_name, inter_name, ssc_name;
   data.branch.forEach(element => {
     branch.push(parseInt(element));
   });
   branch = `${unescape(branch)}`;
+  if(data.selectedCompanies !== undefined){
+  data.selectedCompanies.forEach(ids=>{
+    selectedDrives.push(parseInt(ids));
+  })
+  selectedDrives = `${unescape(selectedDrives)}`;
+}
   if(data.eamcet_rank===null) data.eamcet_rank=1000000000;
-  if (data.isSelected === "yes") {
-    data.isSelected = "'0','1'";
-  } else {
-    data.isSelected = "'0'";
-  }
   if (data.gender === "all") {
     data.gender = "'M','F'";
   }
@@ -292,11 +310,26 @@ app.post("/students/filter", (req, res) => {
   } else {
     btech_name = "BTECH_PERCENTAGE";
   }
-
-  let sql ="select * from student_details where "+btech_name+">="+data.btech_score+" and "+inter_name+">="+data.class12_score+" and "+
-  ""+ssc_name+">="+data.class10_score+" and BTECH_BACKLOGS<="+data.backlogs+" and EAMCET_RANK<"+data.eamcet_rank+" and GENDER in ("+ data.gender +") "
-   +"and YOP_BTECH="+data.year_of_passing+" and selection_status in ("+data.isSelected+") and BRANCH_CODE in ("+branch+") ";
-  
+  let sql;
+  if (data.isSelected === "yes") {
+    data.isSelected = "'0'";
+    if(selectedDrives.length ===0){
+      sql ="select s.* from student_details s left join drive_process d on d.HTNO = s.HTNo where s."+btech_name+">="+data.btech_score+" and s."+inter_name+">="+data.class12_score+" and "+
+    "s."+ssc_name+">="+data.class10_score+" and s.BTECH_BACKLOGS<="+data.backlogs+" and s.EAMCET_RANK<"+data.eamcet_rank+" and s.GENDER in ("+ data.gender +") "
+     +"and s.YOP_BTECH="+data.year_of_passing+" and s.BRANCH_CODE in ("+branch+") and s.selection_status in('0','1') ";
+    }
+    else{
+    sql ="select s.* from student_details s left join drive_process d on d.HTNO = s.HTNo where s."+btech_name+">="+data.btech_score+" and s."+inter_name+">="+data.class12_score+" and "+
+    "s."+ssc_name+">="+data.class10_score+" and s.BTECH_BACKLOGS<="+data.backlogs+" and s.EAMCET_RANK<"+data.eamcet_rank+" and s.GENDER in ("+ data.gender +") "
+     +"and s.YOP_BTECH="+data.year_of_passing+" and s.BRANCH_CODE in ("+branch+") and s.selection_status = '0' or (s.selection_status = '1' and d.selected in ('selected') and d.drive_id in ("+selectedDrives+") )";
+    }
+  } 
+  else {
+    data.isSelected = "'0'";
+    sql ="select * from student_details where "+btech_name+">="+data.btech_score+" and "+inter_name+">="+data.class12_score+" and "+
+    ""+ssc_name+">="+data.class10_score+" and BTECH_BACKLOGS<="+data.backlogs+" and EAMCET_RANK<"+data.eamcet_rank+" and GENDER in ("+ data.gender +") "
+     +"and YOP_BTECH="+data.year_of_passing+" and selection_status = "+data.isSelected+" and BRANCH_CODE in ("+branch+") ";
+  }
    con.query(sql, (err, result) => {
     if (err) {
       returnData.error=err.code;
@@ -527,7 +560,12 @@ app.post("/drives/delete", (req, res) => {
     data.drive_id +
     "";
   con.query(sql, (err, driveResult) => {
-    if (err) throw err;
+    if (err){
+      returnData.error = err.code;
+      returnData.status = "Error!";
+      returnData.returnData = driveResult;
+      res.send(returnData);
+    }
   });
   returnData.status = "Deleted Successfully";
   res.send(returnData);
@@ -571,9 +609,7 @@ app.post("/drives/modify", (req, res) => {
     "', '%Y-%m-%d') where drive_id=" +
     data.drive_id +
     "";
-  con.query(dateQuery, (err, result) => {
-    if (err) throw err;
-  });
+  con.query(dateQuery);
   con.query(
     "select id from drive_rounds where drive_id=" + data.drive_id + " and delete_status='0'",
     (err, ids) => {
@@ -602,9 +638,7 @@ app.post("/drives/modify", (req, res) => {
             " where id=" +
             id_list[i] +
             "";
-          con.query(roundQuery, (err, resultRound) => {
-            if (err) throw err;
-          });
+          con.query(roundQuery);
         }
       }
     }
@@ -662,80 +696,24 @@ app.post("/drives/olddrive", (req, res) => {
   }
 });
 
-app.post("/round/add", function(req, res) {
-  let returnData = {};
-  let data = req.body;
-  let sql = "select count(round_name) from rounds where round_name='"+data.data+"'and delete_status='0'";
-  con.query(sql,(error,count)=>{
-    if(error) res.send("cannot find round name");
-    else{
-    count=count[0]['count(round_name)'];
-    if(count===0){
-    let sql = "insert into rounds (round_name) values ('" + data.data + "')";
-    con.query(sql, (err, result) => {
-    if (err) res.send("cannot insert rounds");
-    else{
-      res.send("Rounds added successfully");
-    }
-  });
-}
-}
-});
-});
-
-app.get("/rounds", function(req, res) {
-  let returnData = {};
-  con.query("select * from rounds where delete_status='0'", (err, result) => {
-    if (err) throw err;
-    returnData = { result: JSON.parse(JSON.stringify(result)) };
-    res.send(returnData);
-  });
-});
-
-app.post("/rounds/delete", (req, res) => {
-  let returnData = {};
-  data = req.body;
-  con.query(
-    "update rounds set delete_status ='1' where id = (" + data.id + ") ",
-    (err, result) => {
-      if (err) throw err;
-    }
-  );
-  returnData.status = "Deleted Successfully";
-  res.send(returnData);
-});
-
-app.get("/passing/year", (req, res) => {
-  let returnData = {};
-  let sql = "select distinct YEAR(date_of_drive) from drive_details where delete_status='0' ";
-  con.query(sql, (err, result) => {
-    if(err){
-      returnData.error = err.code;
-      returnData.status = "No years present!";
-      returnData.result = result;
-      res.send(returnData);
-    }
-    else{
-    result = JSON.parse(JSON.stringify(result));
-    let resultYear = [];
-    result.forEach((ele)=>{
-      resultYear.push(ele['YEAR(date_of_drive)']);
-    })
-    returnData.result = resultYear;
-    returnData.status = "Successfull!"
-    res.send(returnData);
-    }
-  });
-});
+app.post('/drive/rounds',(req,res)=>{
+  let  drive_name=req.body.drive_name;
+  sql="select r.round_name from rounds r inner join drive_details d "+
+"inner join drive_rounds dr on r.id=dr.round_id and "+
+"d.drive_id=dr.drive_id where d.company='"+drive_name+"'";
+  con.query(sql,(err,result)=>
+  {
+    if(err) throw err;
+    res.send(JSON.parse(JSON.stringify(result)));
+  })
+})
 
 app.post("/drives/drivesList", (req, res) => {
-  let date = req.body.date.split("/");
+  let data = req.body.data;
+  date = data.date.split("/");
   date = [date[2], date[1], date[0]].join("-");
   let values = [];
-  sql =
-    "select drive_id,company from drive_details where date_of_drive='" +
-    date +
-    "'";
+  sql ="select drive_id,company from drive_details where date_of_drive= '"+date +"'";
   con.query(sql, (err, drive_list) => {
     if (err) throw err;
     drive_list.forEach(element => {
@@ -751,20 +729,14 @@ app.post("/drives/performance/driveDetails", (req, res) => {
   values1 = [];
   data = req.body;
   let drive_id = data.drive_id;
-  sql1 =
-    "select dp.HTNO,r.round_name,dp.attendance_status,dp.selected,dp.offer_letter from drive_process dp inner join rounds r on dp.drive_id='" +
-    drive_id +
-    "' and r.id = dp.round_id";
+  sql1 ="select dp.HTNO,r.round_name,dp.attendance_status,dp.selected,dp.offer_letter from drive_process dp inner join rounds r on dp.drive_id='"+drive_id +"' and r.id = dp.round_id";
   con.query(sql1, (err, selected) => {
     if (err) throw err;
     selected.forEach(ele => {
       values.push(JSON.parse(JSON.stringify(ele)));
     });
     returnData.students = values;
-    sql =
-      "select r.round_name from drive_rounds dr inner join rounds r on r.id=dr.round_id and drive_id='" +
-      drive_id +
-      "'";
+    sql ="select r.round_name from drive_rounds dr inner join rounds r on r.id=dr.round_id and drive_id='" +drive_id +"'";
     con.query(sql, (err, result) => {
       if (err) throw err;
       result.forEach(ele => {
@@ -795,13 +767,115 @@ app.post("/drives/performance/editDetail", (req, res) => {
     if (err) throw err;
     round_id = JSON.parse(JSON.stringify(round_id));
     round_id = round_id[0].id;
-    sql2 =
-      "update drive_process set round_id='"+round_id +"',attendance_status='" +attendance_status +"',selected='"+selected+"',offer_letter='"+offer_letter+"' where drive_id='" +drive_id +"'and HTNO='" +HTNO +"'";
+    sql2 ="update drive_process set round_id='"+round_id +"',attendance_status='" +attendance_status +"',selected='"+selected+"',offer_letter='"+offer_letter+"' where drive_id='" +drive_id +"'and HTNO='" +HTNO +"'";
     con.query(sql2, (error, result) => {
       if (error) throw error;
+      if(selected === 1){
+        let sql = "update student_details set selection_status = '1' where HTNO = '"+HTNO+"' ";
+        con.query(sql);
+      }
     });
   });
   res.send("successfull");
+});
+
+app.get("/drives/special",(req,res)=>{
+  let returnData ={};
+  let data = [];
+  let drives;
+  let year = new Date().getFullYear();
+  let sql = "select drive_id,company,date_of_drive from drive_details where YEAR(date_of_drive) = "+year+" or YEAR(date_of_drive) = "+(year-1)+"";
+  con.query(sql,(err,result)=>{
+    if(err || result.length === 0){
+      returnData.status = "Sorry! No drives available!";
+      res.send(returnData);
+    }
+    else{
+    result.forEach(drive=>{
+      drives = {};
+      drives.name = (drive.company+" - "+new Date(drive.date_of_drive).toLocaleDateString('en-GB'));
+      drives.value = JSON.stringify(drive.drive_id);
+      data.push(drives);
+    })
+    returnData.result = data;
+    returnData.status = "Successfull!";
+    res.send(returnData);
+    }
+  });
+});
+
+app.post("/round/add", function(req, res) {
+  let returnData = {};
+  let data = req.body;
+  let sql = "select count(round_name) from rounds where round_name='"+data.data+"'and delete_status='0'";
+  con.query(sql,(error,count)=>{
+    if(error) res.send("cannot find round name");
+    else{
+    count=count[0]['count(round_name)'];
+    if(count===0){
+    let sql = "insert into rounds (round_name) values ('" + data.data + "')";
+    con.query(sql, (err, result) => {
+    if (err) res.send("cannot insert rounds");
+    else{
+      res.send("Rounds added successfully");
+    }
+  });
+}
+}
+});
+});
+
+app.get("/rounds", function(req, res) {
+  let returnData = {};
+  con.query("select * from rounds where delete_status='0'", (err, result) => {
+    if (err){
+      returnData.error = err.code;
+      returnData.status = "Error!";
+      returnData.result = [];
+      res.send(returnData);
+    }
+    returnData = { result: JSON.parse(JSON.stringify(result)) };
+    res.send(returnData);
+  });
+});
+
+app.post("/rounds/delete", (req, res) => {
+  let returnData = {};
+  data = req.body;
+  con.query(
+    "update rounds set delete_status ='1' where id = (" + data.id + ") ",
+    (err, result) => {
+      if (err) {returnData.error = err.code;
+        returnData.status = "Error!";
+        returnData.result = [];
+        res.send(returnData);}
+    }
+  );
+  returnData.status = "Deleted Successfully";
+  res.send(returnData);
+});
+
+app.get("/passing/year", (req, res) => {
+  let returnData = {};
+  let sql = "select distinct YEAR(date_of_drive) from drive_details where delete_status='0' ";
+  con.query(sql, (err, result) => {
+    if(err){
+      returnData.error = err.code;
+      returnData.status = "No years present!";
+      returnData.result = result;
+      res.send(returnData);
+    }
+    else{
+    result = JSON.parse(JSON.stringify(result));
+    let resultYear = [];
+    result.forEach((ele)=>{
+      resultYear.push(ele['YEAR(date_of_drive)']);
+    })
+    returnData.result = resultYear;
+    returnData.status = "Successfull!"
+    res.send(returnData);
+    }
+  });
 });
 
 app.listen(port);
