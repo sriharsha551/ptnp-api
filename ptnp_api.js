@@ -189,35 +189,31 @@ app.post('/student/details',(req,res)=>{
   con.query(sql,(err,result)=>{
     if(err) {
       returnData.status="Sorry ! Cannot find student";
-      returnData.personal=personal[0];
-      returnData.drive=drives;
+      returnData.result=[];
     }
     else{
     personal.push(JSON.parse(JSON.stringify(result)));
+    returnData.result=[personal[0][0]];
   let sql2 = "select d.company,r.round_name,dp.selected,dp.offer_letter from drive_process "+
 "dp inner join drive_details d on d.drive_id=dp.drive_id inner join "+
 "rounds r on r.id=dp.round_id where dp.HTNO='"+HTNO+"'";
   con.query(sql2,(err,result)=>{
     if(err)
     {
-      // returnData.error=err.code;
       returnData.status="Sorry cannot get the data"; 
-      returnData.personal=personal[0][0];
-      returnData.drive=drives;
+      returnData.result[1]=drives;
     }
     else{
     drives.push(JSON.parse(JSON.stringify(result)));
-    returnData.personal=personal[0][0];
-    returnData.drive=drives[0];
+    returnData.result[1]=drives[0];
     let options={year:'numeric',month:'2-digit',day:'2-digit'};
-    returnData.personal.DOB=new Date(returnData.personal.DOB).toLocaleDateString('en-GB',options);
-    delete returnData.personal.SNO;
+    returnData.result[0].DOB=new Date(returnData.result[0].DOB).toLocaleDateString('en-GB',options);
+    delete returnData.result[0].SNO;
     returnData.status="Successfully imported data...";
     }
-    
+    res.send(returnData);  
  });
 }
-res.send(returnData);
  });
 });
 
@@ -250,8 +246,8 @@ if(data.SSC_GPA===null)
         returnData.status="Sorry!Details Cannot be updated";
       else
         returnData.status="Successfully updated";
+      res.send(returnData);
      })
-     res.send(returnData);
 })
 
 app.post('/search/student/driveEditDetail',(req,res)=>{
@@ -278,9 +274,9 @@ app.post('/search/student/driveEditDetail',(req,res)=>{
           returnData.status="Successfull";
         }
       }
+      res.send(returnData);
       })
     })
-    res.send(returnData);
   })
 
 
@@ -737,12 +733,12 @@ app.post("/drives/drivesList", (req, res) => {
   con.query(sql, (err, drive_list) => {
     if (err || drive_list.length===0){
       returnData.status="Sorry! No drives are available";
-      returnData.values=values;
+      returnData.result=values;
     }
     else{
     drive_list.forEach(element => {
       values.push(JSON.parse(JSON.stringify(element)));
-      returnData.values=values;
+      returnData.result=values;
       returnData.status="Successful";
     });
   }
@@ -761,31 +757,32 @@ app.post("/drives/performance/driveDetails", (req, res) => {
     if (err||selected.length===0)
     {
         returnData.status="Sorry! There are no students";
-        returnData.students = values;
-        returnData.rounds=values1;
+        returnData.result = values;
+        res.send(returnData);
     } 
     else{
     selected.forEach(ele => {
       values.push(JSON.parse(JSON.stringify(ele)));
     });
-    returnData.students = values;
+    returnData.result=[values];
     sql ="select r.round_name from drive_rounds dr inner join rounds r on r.id=dr.round_id and drive_id='" +drive_id +"'";
     con.query(sql, (err, result) => {
       if (err||result.length===0) {
         returnData.status="Sorry ! NO round is present";
-        returnData.rounds = values1;
+        returnData.result=values1;
       }
       else{
       result.forEach(ele => {
         values1.push(JSON.parse(JSON.stringify(ele)));
       });
-      returnData.rounds = values1;
+      returnData.result[1]=values1;
       returnData.status = "Successfull";
     }
+    res.send(returnData);
     });
   }
   });
-  res.send(returnData);
+
 });
 
 app.post("/drives/performance/editDetail", (req, res) => {
@@ -807,6 +804,7 @@ app.post("/drives/performance/editDetail", (req, res) => {
   con.query(sql, (err, round_id) => {
     if (err||round_id[0].length===0) {
       returnData.status="Sorry! No round present";
+      res.send(returnData);
     }
     else{
     round_id = JSON.parse(JSON.stringify(round_id));
@@ -822,10 +820,10 @@ app.post("/drives/performance/editDetail", (req, res) => {
         returnData.status="Successfully updated";
       }
     }
+    res.send(returnData);
     });
   }
   });
-  res.send(returnData);
 });
 
 app.get("/drives/special",(req,res)=>{
