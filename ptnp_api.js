@@ -31,7 +31,7 @@ app.post("/login/page",(req,res)=>{
   let returnData ={};
   let data = req.body.data;
   data.password= sha256(data.password);
-  let sql = "select user_name,user_password,user_role from users where user_name = '"+data.user+"' and delete_status='0'";
+  let sql = "select user_name,user_password,user_role,branch from users where user_name = '"+data.user+"' and delete_status='0'";
   con.query(sql,(err,result)=>{
     if (err){
       returnData.error = err.code;
@@ -49,6 +49,7 @@ app.post("/login/page",(req,res)=>{
       returnData.role =result[0]['user_role'];
       returnData.login = true;
       returnData.user = result[0]['user_name'];
+      returnData.branch = result[0]['branch'];
       res.send(returnData);
     }
     else{
@@ -75,7 +76,7 @@ app.post("/user/add", (req, res) => {
     }
     else{
       let sql =
-        "insert into users (user_name,user_password,user_role) values('"+data.user +"','" +data.password+"','" +data.role +"')";
+        "insert into users (user_name,user_password,user_role,branch) values('"+data.user +"','" +data.password+"','" +data.role +","+data.branch+")";
       con.query(sql, (err, result) => {
         if (err) {
           returnData.error = err.code;
