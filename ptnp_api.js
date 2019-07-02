@@ -314,7 +314,7 @@ app.post("/students/filter", (req, res) => {
   if (data.isSelected === "yes") {
     data.isSelected = "'0'";
     if(selectedDrives.length ===0){
-      sql ="select s.* from student_details s left join drive_process d on d.HTNO = s.HTNo where s."+btech_name+">="+data.btech_score+" and s."+inter_name+">="+data.class12_score+" and "+
+      sql ="select distinct s.* from student_details s left join drive_process d on d.HTNO = s.HTNo where s."+btech_name+">="+data.btech_score+" and s."+inter_name+">="+data.class12_score+" and "+
     "s."+ssc_name+">="+data.class10_score+" and s.BTECH_BACKLOGS<="+data.backlogs+" and s.EAMCET_RANK<"+data.eamcet_rank+" and s.GENDER in ("+ data.gender +") "
      +"and s.YOP_BTECH="+data.year_of_passing+" and s.BRANCH_CODE in ("+branch+") and s.selection_status in('0','1') ";
     }
@@ -429,8 +429,8 @@ app.post("/students/addToDrive",(req,res)=>{
           }
         });
       }
-      else if(rollno.includes(entry[0])===true){
-        if(duplicates.includes(drive_id)===false){
+      if(rollno.includes(entry[0])===true){
+        if(duplicates.includes(parseInt(drive_id))===false){
           let sql="insert into drive_process (HTNO,drive_id) values('"+entry[0]+"','"+entry[1]+"')";
           con.query(sql,(err,result)=>{
             if (err) {
