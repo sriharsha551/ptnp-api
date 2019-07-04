@@ -13,7 +13,7 @@ const port = 5000;
 let con = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "koushik@999",
+  password: "sriharsha@12345",
   database: "pragati_tnp"
 });
 
@@ -63,6 +63,7 @@ app.post("/login/page",(req,res)=>{
 app.post("/user/add", (req, res) => {
   let returnData = {};
   let data = req.body.data;
+  console.log(data);
   data.password = sha256(data.password);
   let sql = "select user_name from users where delete_status='0'";
   con.query(sql, (err, userResult) => {
@@ -76,8 +77,8 @@ app.post("/user/add", (req, res) => {
     }
     else{
       let sql =
-        "insert into users (user_name,user_password,user_role,branch) values('"+data.user +"','" +data.password+"','" +data.role +","+data.branch+")";
-      con.query(sql, (err, result) => {
+        "insert into users (user_name,user_password,user_role,branch) values('"+data.user +"','" +data.password+"','" +data.role +"',"+data.branch+")";
+        con.query(sql, (err, result) => {
         if (err) {
           returnData.error = err.code;
           returnData.status = "Sorry! can not add user!";
