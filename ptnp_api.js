@@ -64,6 +64,7 @@ app.post("/user/add", (req, res) => {
   let returnData = {};
   let data = req.body.data;
   console.log(data);
+  if(data.branch === '') data.branch = null;
   data.password = sha256(data.password);
   let sql = "select user_name from users where delete_status='0'";
   con.query(sql, (err, userResult) => {
