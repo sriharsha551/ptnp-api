@@ -330,7 +330,7 @@ app.post("/students/filter", (req, res) => {
      +"and s.YOP_BTECH="+data.year_of_passing+" and s.BRANCH_CODE in ("+branch+") and s.selection_status in('0','1') ";
     }
     else{
-    sql ="select s.* from student_details s left join drive_process d on d.HTNO = s.HTNo where s."+btech_name+">="+data.btech_score+" and s."+inter_name+">="+data.class12_score+" and "+
+    sql ="select distinct s.* from student_details s left join drive_process d on d.HTNO = s.HTNo where s."+btech_name+">="+data.btech_score+" and s."+inter_name+">="+data.class12_score+" and "+
     "s."+ssc_name+">="+data.class10_score+" and s.BTECH_BACKLOGS<="+data.backlogs+" and s.EAMCET_RANK<"+data.eamcet_rank+" and s.GENDER in ("+ data.gender +") "
      +"and s.YOP_BTECH="+data.year_of_passing+" and s.BRANCH_CODE in ("+branch+") and s.selection_status = '0' or (s.selection_status = '1' and d.selected in ('selected') and d.drive_id in ("+selectedDrives+") )";
     }
@@ -340,7 +340,7 @@ app.post("/students/filter", (req, res) => {
     sql ="select * from student_details where "+btech_name+">="+data.btech_score+" and "+inter_name+">="+data.class12_score+" and "+
     ""+ssc_name+">="+data.class10_score+" and BTECH_BACKLOGS<="+data.backlogs+" and EAMCET_RANK<"+data.eamcet_rank+" and GENDER in ("+ data.gender +") "
      +"and YOP_BTECH="+data.year_of_passing+" and selection_status = "+data.isSelected+" and BRANCH_CODE in ("+branch+") ";
-  }
+    }
    con.query(sql, (err, result) => {
     if (err) {
       returnData.error=err.code;
@@ -417,7 +417,8 @@ app.post("/students/addToDrive",(req,res)=>{
           res.send(returnData);
         }
         else{
-          returnData.status="Successfully added to drive!"
+          returnData.status="Successfully added to drive!";
+          res.send(returnData);
         }
     });
   }
@@ -426,7 +427,7 @@ app.post("/students/addToDrive",(req,res)=>{
       rollno.push(ele.HTNO);
       duplicates.push(ele.drive_id);
     })
-    columnvalues.forEach(entry=>{
+    columnvalues.forEach((entry,i)=>{
       if(rollno.includes(entry[0])===false){
         let sql="insert into drive_process (HTNO,drive_id) values('"+entry[0]+"','"+entry[1]+"')";
         con.query(sql,(err,result)=>{
@@ -436,12 +437,12 @@ app.post("/students/addToDrive",(req,res)=>{
             res.send(returnData);
           }
           else{
-            returnData.status="Successfully added to drive!"
+            returnData.status="Successfully added to drive!";
           }
         });
       }
-      if(rollno.includes(entry[0])===true){
-        if(duplicates.includes(parseInt(drive_id))===false){
+      else if(rollno.includes(entry[0])===true){
+        if(duplicates.includes(Number(drive_id))===false){
           let sql="insert into drive_process (HTNO,drive_id) values('"+entry[0]+"','"+entry[1]+"')";
           con.query(sql,(err,result)=>{
             if (err) {
@@ -450,15 +451,26 @@ app.post("/students/addToDrive",(req,res)=>{
               res.send(returnData);
             }
             else{
-              returnData.status="Successfully added to drive!"
+              returnData.status="Successfully added to drive!";
+              if(columnvalues.length-1 === i){
+                send();
+              }
             }
         });
         }
+        else{
+          returnData.status = "Successfully added to drive!";
+          if(columnvalues.length-1 === i){
+            send();
+          }
+        }
       }
-    })
+    });
+    function send(){
+    res.send(returnData);
+    }
   }
   });
-    res.send(returnData);
 });
 
 app.post("/drives/add", upload.none(), (req, res) => {
