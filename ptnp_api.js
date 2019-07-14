@@ -846,7 +846,7 @@ app.get("/drives/special",(req,res)=>{
   let data = [];
   let drives;
   let year = new Date().getFullYear();
-  let sql = "select drive_id,company,date_of_drive from drive_details where YEAR(date_of_drive) = "+year+" or YEAR(date_of_drive) = "+(year-1)+"";
+  let sql = "select drive_id,company,date_of_drive from drive_details where (YEAR(date_of_drive) = "+year+" or YEAR(date_of_drive) = "+(year-1)+") and delete_status='0'";
   con.query(sql,(err,result)=>{
     if(err || result.length === 0){
       returnData.status = "Sorry! No drives available!";
@@ -854,6 +854,7 @@ app.get("/drives/special",(req,res)=>{
     }
     else{
     result.forEach(drive=>{
+      console.log(drive);
       drives = {};
       drives.name = (drive.company+" - "+new Date(drive.date_of_drive).toLocaleDateString('en-GB'));
       drives.value = JSON.stringify(drive.drive_id);
