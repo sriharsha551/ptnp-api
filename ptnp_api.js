@@ -854,7 +854,6 @@ app.get("/drives/special",(req,res)=>{
     }
     else{
     result.forEach(drive=>{
-      console.log(drive);
       drives = {};
       drives.name = (drive.company+" - "+new Date(drive.date_of_drive).toLocaleDateString('en-GB'));
       drives.value = JSON.stringify(drive.drive_id);
