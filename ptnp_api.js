@@ -1014,9 +1014,9 @@ app.get('/tests/subjects',(req,res)=>{
 })
 
 app.post('/display/testdata',(req,res)=>{
-  let branch='all';
-  let year = 2021;
-  let sub = 'aptitude';
+  let branch=req.body.branch;
+  let year = req.body.yop;
+  let sub = req.body.subject;
   let result={};
   let testName=[];
   let testData=[];
@@ -1081,6 +1081,7 @@ app.post('/display/testdata',(req,res)=>{
       testData[j]=(JSON.parse(JSON.stringify(test)));
       if(j===roll.length-1 && i===testId.length-1){
           returnData.testData=testData;
+          returnData.status="succcessful";
           res.send(returnData);
       }
           })      
@@ -1105,5 +1106,7 @@ app.get('/tests/passing',(req,res)=>{
     res.send(returnData);
   })
 })
+
+
 
 app.listen(port);
