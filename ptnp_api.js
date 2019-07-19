@@ -1014,31 +1014,46 @@ app.get('/tests/subjects',(req,res)=>{
 })
 
 app.post('/display/testdata',(req,res)=>{
-  let branch=5;
+  let branch='all';
   let year = 2021;
+  let sub = 'aptitude';
   let result={};
   let testName=[];
   let testData=[];
   let sql;
-  let sub = 'all';
+  let sql3;
   let returnData={};
+  if(branch==='all'){
+    lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'";
   if(sub==='all'){
-   sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'";
+   sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.YOP_BTECH='"+year+"'";
   }
   else{
-    let sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"' and t.sub_id='"+sub+"'";
-  }
-  let lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'"
-      con.query(lengt,(e,len)=>{
+   sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
+  }}
+  else{
+   lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'"
+  if(sub==='all'){
+    sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.BRANCH_CODE='"+branch+"'and s.YOP_BTECH='"+year+"'";
+   }
+   else{
+     sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
+   }
+}con.query(lengt,(e,len)=>{
         len=len.length;
   con.query(sql,(err,roll)=>{
-    roll=JSON.parse(JSON.stringify(roll))
+    roll=JSON.parse(JSON.stringify(roll));
     roll.forEach((ele,j) => {
       let test={};
       let avg=[];
       let a=0;
-      
-      let sql3="select distinct t.id,t.test_name from training_test tt inner join test_tnp t on t.id = tt.id inner join student_details s on s.YOP_BTECH='"+year+"'and s.BRANCH_CODE='"+branch+"'";
+
+    if(branch==='all'){
+       sql3="select distinct t.id,t.test_name from training_test tt inner join test_tnp t on t.id = tt.id inner join student_details s on s.YOP_BTECH='"+year+"'"; 
+    }
+    else{
+       sql3="select distinct t.id,t.test_name from training_test tt inner join test_tnp t on t.id = tt.id inner join student_details s on s.YOP_BTECH='"+year+"'and s.BRANCH_CODE='"+branch+"'";
+    }
       con.query(sql3,(er,test_name)=>{
         let testId=[];
         testName=[];
@@ -1066,7 +1081,6 @@ app.post('/display/testdata',(req,res)=>{
       testData[j]=(JSON.parse(JSON.stringify(test)));
       if(j===roll.length-1 && i===testId.length-1){
           returnData.testData=testData;
-          // console.log(returnData);
           res.send(returnData);
       }
           })      
@@ -1074,6 +1088,21 @@ app.post('/display/testdata',(req,res)=>{
       })
     });
   })
+  })
+})
+
+app.get('/tests/passing',(req,res)=>{
+  let sql="select distinct YOP_BTECH from student_details order by YOP_BTECH desc";
+  let returnData={};
+  let result=[];
+  con.query(sql,(err,respo)=>{
+    respo=JSON.parse(JSON.stringify(respo));
+    respo.forEach(ele=>{
+      result.push(ele.YOP_BTECH);
+    })
+    returnData.result=result;
+    returnData.status="successfull";
+    res.send(returnData);
   })
 })
 
