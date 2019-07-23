@@ -982,13 +982,13 @@ next=()=>{
         let unique_sub=[];
         let sub=[];
         let ori_sub=[];
-        console.log(records);
+        // console.log(records);
         for(let i=2;i<records[0].length;i++){
           sub.push(records[0][i]);
           if(!ori_sub.includes(records[0][i]))
             ori_sub.push(records[0][i]);
         }
-        console.log(sub);
+        // console.log(sub);
         for(let i=1;i<records.length;i++){
           HTNO.push(records[i][1]);
         }
@@ -996,7 +996,7 @@ next=()=>{
           for(let j=1;j<records.length;j++)
             grades.push(records[j][i]);
         }
-        console.log(grades);
+        // console.log(grades);
         let k=0;
         sub.forEach(ele=>{
         let sql2="select count(*) from sub_tnp where sub_name='"+ele+"'";
@@ -1011,8 +1011,16 @@ next=()=>{
         sub_id=(sub_id[0].id);
         for(let j=0;j<HTNO.length;j++)
         {
-          con.query("insert into training_test(HTNO,test_id,sub_id,marks) values('"+HTNO[j]+"','"+test_id+"','"+sub_id+"','"+grades[k]+"')");
-          k++;
+          // console.log(j);
+          let duplicate = "select count(*) from training_test where HTNO='"+HTNO[j]+"'and test_id='"+test_id+"'and sub_id='"+sub_id+"'";
+          con.query(duplicate,(err,dup)=>{
+              dup=JSON.parse(JSON.stringify(dup));
+              if((dup[0]['count(*)'])===0)
+                  con.query("insert into training_test(HTNO,test_id,sub_id,marks) values('"+HTNO[j]+"','"+test_id+"','"+sub_id+"','"+grades[k]+"')");
+              else 
+              con.query("update training_test set marks='"+grades[k]+"'where HTNO='"+HTNO[j]+"'and test_id='"+test_id+"'and sub_id='"+sub_id+"'");
+              k++;
+          })
         }})
       })
     })
