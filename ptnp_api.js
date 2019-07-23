@@ -13,7 +13,7 @@ const port = 5000;
 let con = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "sriharsha@12345",
+  password: "koushik@999",
   database: "pragati_tnp"
 });
 
@@ -945,7 +945,10 @@ app.post('/test/addData',upload.array("file", 12),(req,res)=>{
   let filenames=[];
   let originalnames=[];
   let excluding=[];
+<<<<<<< HEAD
   let returnData = {};
+=======
+>>>>>>> 9f5a2aedccf392a1b76b2bf81d25fe81f8ce76a4
   files.forEach((ele)=>{
     ele=ele.originalname.split(' ');
     originalnames.push(ele[0]);
@@ -962,12 +965,16 @@ app.post('/test/addData',upload.array("file", 12),(req,res)=>{
         if(i==excluding.length-1)
           next();
       }
+<<<<<<< HEAD
       else{
         next();
       }
     })
     returnData.status = "Successfull!";
     res.send(returnData)
+=======
+    })
+>>>>>>> 9f5a2aedccf392a1b76b2bf81d25fe81f8ce76a4
   }
 next=()=>{
   for(let i=0;i<originalnames.length;i++){
@@ -980,6 +987,7 @@ next=()=>{
         let HTNO=[];
         let grades=[];
         let unique_sub=[];
+<<<<<<< HEAD
         let sub=[];
         let ori_sub=[];
         console.log(records);
@@ -1000,10 +1008,19 @@ next=()=>{
         let k=0;
         sub.forEach(ele=>{
         let sql2="select count(*) from sub_tnp where sub_name='"+ele+"'";
+=======
+        let sub=records[0][2];
+        for(let i=1;i<records.length;i++){
+          HTNO.push(records[i][1]);
+          grades.push(records[i][2]);
+        }
+        let sql2="select count(*) from sub_tnp where sub_name='"+sub+"'";
+>>>>>>> 9f5a2aedccf392a1b76b2bf81d25fe81f8ce76a4
         con.query(sql2,(err,count)=>{
         count=(JSON.parse(JSON.stringify(count)));
         if(count[0]['count(*)']===0)
         {
+<<<<<<< HEAD
           con.query("insert into sub_tnp (sub_name) values ('"+ele+"')");
         }
         con.query("select id from sub_tnp where sub_name='"+ele+"'",(error,sub_id)=>{
@@ -1036,6 +1053,26 @@ app.post('/tests/subjects',(req,res)=>{
  sql = "select distinct s.sub_name from sub_tnp s inner join student_details st on st.BRANCH_CODE = '"+branch+"' and st.YOP_BTECH = '"+year+"' inner join training_test t on t.HTNO=st.HTNO where t.sub_id = s.id";
  }
 
+=======
+          con.query("insert into sub_tnp (sub_name) values ('"+sub+"')");
+        }
+        con.query("select id from sub_tnp where sub_name='"+sub+"'",(error,sub_id)=>{
+        sub_id=(JSON.parse(JSON.stringify(sub_id)));
+        sub_id=(sub_id[0].id);
+        for(let j=0;j<HTNO.length;j++)
+          con.query("insert into training_test(HTNO,test_id,sub_id,marks) values('"+HTNO[j]+"','"+test_id+"','"+sub_id+"','"+grades[j]+"')");
+        })
+      })
+    })
+  }
+}
+})
+
+app.get('/tests/subjects',(req,res)=>{
+ returnData = {};
+ sub=[];
+  let sql = "select sub_name from sub_tnp";
+>>>>>>> 9f5a2aedccf392a1b76b2bf81d25fe81f8ce76a4
  con.query(sql,(err,result)=>{
    result=JSON.parse(JSON.stringify(result))
    result.forEach(ele=>{
@@ -1048,7 +1085,11 @@ app.post('/tests/subjects',(req,res)=>{
 })
 
 app.post('/display/testdata',(req,res)=>{
+<<<<<<< HEAD
   let branch=req.body.branch_code;
+=======
+  let branch=req.body.branch;
+>>>>>>> 9f5a2aedccf392a1b76b2bf81d25fe81f8ce76a4
   let year = req.body.yop;
   let sub = req.body.subject;
   let result={};
@@ -1058,6 +1099,7 @@ app.post('/display/testdata',(req,res)=>{
   let sql3;
   let returnData={};
   if(branch==='all'){
+<<<<<<< HEAD
       if(sub==='all'){
         lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'";
    sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.YOP_BTECH='"+year+"'";
@@ -1075,6 +1117,22 @@ app.post('/display/testdata',(req,res)=>{
 
     lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'inner join sub_tnp st on st.sub_name='"+sub+"' and st.id=t.sub_id"
     sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
+=======
+    lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'";
+  if(sub==='all'){
+   sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.YOP_BTECH='"+year+"'";
+  }
+  else{
+   sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
+  }}
+  else{
+   lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'"
+  if(sub==='all'){
+    sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.BRANCH_CODE='"+branch+"'and s.YOP_BTECH='"+year+"'";
+   }
+   else{
+     sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
+>>>>>>> 9f5a2aedccf392a1b76b2bf81d25fe81f8ce76a4
    }
 }con.query(lengt,(e,len)=>{
         len=len.length;
@@ -1101,6 +1159,7 @@ app.post('/display/testdata',(req,res)=>{
         })
         test['rollNumber']=JSON.parse(JSON.stringify(ele.HTNO))
     testId.forEach((name,i)=>{
+<<<<<<< HEAD
       if(sub==='all'){
          sql2 = "select ts.sub_name,t.marks from training_test t inner join test_tnp tt on t.test_id=tt.id inner join sub_tnp ts on ts.id = t.sub_id where t.HTNO='"+ele.HTNO+"' and t.test_id='"+name+"'";
 
@@ -1108,6 +1167,10 @@ app.post('/display/testdata',(req,res)=>{
       else{
     sql2 = "select ts.sub_name,t.marks from training_test t inner join test_tnp tt on t.test_id=tt.id inner join sub_tnp ts on ts.id = t.sub_id where t.HTNO='"+ele.HTNO+"' and t.test_id='"+name+"'and sub_name='"+sub+"'";
       }con.query(sql2,(err,marks)=>{
+=======
+    let sql2 = "select ts.sub_name,t.marks from training_test t inner join test_tnp tt on t.test_id=tt.id inner join sub_tnp ts on ts.id = t.sub_id where t.HTNO='"+ele.HTNO+"' and t.test_id='"+name+"'";
+    con.query(sql2,(err,marks)=>{
+>>>>>>> 9f5a2aedccf392a1b76b2bf81d25fe81f8ce76a4
       result={};
       marks = JSON.parse(JSON.stringify(marks));
       marks.forEach(element=>{
@@ -1124,7 +1187,10 @@ app.post('/display/testdata',(req,res)=>{
       if(j===roll.length-1 && i===testId.length-1){
           returnData.testData=testData;
           returnData.status="succcessful";
+<<<<<<< HEAD
           console.log(returnData)
+=======
+>>>>>>> 9f5a2aedccf392a1b76b2bf81d25fe81f8ce76a4
           res.send(returnData);
       }
           })      
@@ -1135,6 +1201,7 @@ app.post('/display/testdata',(req,res)=>{
   })
 })
 
+<<<<<<< HEAD
 app.post('/tests',(req,res)=>{
   branch=req.body.branch;
   year=req.body.year;
@@ -1160,6 +1227,9 @@ app.post('/tests',(req,res)=>{
 
 
 app.post('/tests/passing',(req,res)=>{
+=======
+app.get('/tests/passing',(req,res)=>{
+>>>>>>> 9f5a2aedccf392a1b76b2bf81d25fe81f8ce76a4
   let sql="select distinct YOP_BTECH from student_details order by YOP_BTECH desc";
   let returnData={};
   let result=[];
@@ -1174,4 +1244,9 @@ app.post('/tests/passing',(req,res)=>{
   })
 })
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 9f5a2aedccf392a1b76b2bf81d25fe81f8ce76a4
 app.listen(port);
