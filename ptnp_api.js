@@ -1077,22 +1077,19 @@ app.post('/display/testdata',(req,res)=>{
   let sql3;
   let returnData={};
   if(branch==='all'){
+    lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'";
       if(sub==='all'){
-        lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'";
    sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.YOP_BTECH='"+year+"'";
   }
   else{
-    lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'inner join sub_tnp st on st.sub_name='"+sub+"' and st.id=t.sub_id";
    sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
   }}
   else{
+    lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'";
      if(sub==='all'){
-      lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'"
     sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.BRANCH_CODE='"+branch+"'and s.YOP_BTECH='"+year+"'";
    }
    else{
-
-    lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'inner join sub_tnp st on st.sub_name='"+sub+"' and st.id=t.sub_id"
     sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
    }
 }con.query(lengt,(e,len)=>{
@@ -1119,6 +1116,7 @@ app.post('/display/testdata',(req,res)=>{
           testName.push(test.test_name);
           testId.push(test.id);
         })
+        // console.log(testId);
         test['rollNumber']=JSON.parse(JSON.stringify(ele.HTNO))
     testId.forEach((name,i)=>{
       if(sub==='all'){
@@ -1134,13 +1132,13 @@ app.post('/display/testdata',(req,res)=>{
         result[element.sub_name]=element.marks;
         avg.push(element.marks);
       })
+      console.log(avg);
       test[testName[i]]=JSON.parse(JSON.stringify(result));
       if(i===testId.length-1){
         let sum=avg.reduce((a,b)=> a+=b);
-        // console.log(sum);
-        sum=sum/(2*len);
-        // console.log(sum);
-        test['avg']=Math.round(sum*100)/100;
+        console.log(sum,len);
+        sum=sum/len;
+        test['avg']=sum;
      }
       testData[j]=(JSON.parse(JSON.stringify(test)));
       if(j===roll.length-1 && i===testId.length-1){
@@ -1194,6 +1192,52 @@ app.post('/tests/passing',(req,res)=>{
     returnData.result=result;
     returnData.status="successfull";
     res.send(returnData);
+  })
+})
+
+app.post('/tests/subs/include',(req,res)=>{
+  let branch=req.body.branch_code;
+  let year=req.body.yop;
+  let sub=req.body.subject;
+  let tests=[];
+  let testnames=[];
+  let subs=[];
+  let final={};
+  let returnData={};
+  let sql;
+  let sql2;
+  if(branch==='all'){
+     sql = "select distinct t.test_id,tt.test_name from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'inner join test_tnp tt on t.test_id=tt.id"  
+  }
+  else{
+  sql = "select distinct t.test_id,tt.test_name from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'inner join test_tnp tt on t.test_id=tt.id"
+  }con.query(sql,(err,re)=>
+  {
+    re=JSON.parse(JSON.stringify(re));
+    re.forEach(ele=>{
+      tests.push(ele.test_id);
+      testnames.push(ele.test_name);
+    })
+    tests.forEach((ele,i)=>{
+      let subs=[];
+      if(sub==='all'){
+       sql2="select distinct st.sub_name from training_test t inner join sub_tnp st on t.sub_id=st.id where test_id='"+ele+"'";
+      }
+      else
+      {
+        sql2="select distinct st.sub_name from training_test t inner join sub_tnp st on t.sub_id=st.id where test_id='"+ele+"' and sub_name='"+sub+"'";
+      }
+      con.query(sql2,(error,result)=>{
+        result=JSON.parse(JSON.stringify(result));
+        result.forEach(ele=>{
+          subs.push(ele.sub_name);
+        })
+        final[testnames[i]]=subs;
+        if(i===tests.length-1){
+          returnData['subject_count']=final;
+          res.send(returnData);}
+      })
+    })
   })
 })
 
