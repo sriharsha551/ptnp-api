@@ -13,7 +13,7 @@ const port = 5000;
 let con = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "koushik@999",
+  password: "sriharsha@12345",
   database: "pragati_tnp"
 });
 
@@ -673,9 +673,20 @@ app.post("/drives/modify", (req, res) => {
 app.post("/drives/olddrive", (req, res) => {
   let returnData = {};
   let data = req.body.data;
+  let date = new Date().toLocaleDateString("en-GB").split("/");
+  date = [date[2], date[0], date[1]].join("-");
   let noOfDrives;
-  let sql =
-    "select * from drive_details where YEAR(date_of_drive)=" + data + "";
+  let sql;
+  if(parseInt(data) === new Date().getFullYear())
+  {
+    sql =
+    "select * from drive_details where YEAR(date_of_drive)=" + data + " and date_of_drive < "+date+" and delete_status='0'";
+  }
+  else
+  {
+    sql =
+    "select * from drive_details where YEAR(date_of_drive)=" + data + " and delete_status='0'";
+  }
   con.query(sql, (err, result) => {
     if (err){}
     olddriveData = JSON.parse(JSON.stringify(result));
@@ -1067,25 +1078,26 @@ app.post('/display/testdata',(req,res)=>{
   let returnData={};
   if(branch==='all'){
       if(sub==='all'){
-        lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'";
+        lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'";
    sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.YOP_BTECH='"+year+"'";
   }
   else{
-    lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'inner join sub_tnp st on st.sub_name='"+sub+"' and st.id=t.sub_id";
+    lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'inner join sub_tnp st on st.sub_name='"+sub+"' and st.id=t.sub_id";
    sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
   }}
   else{
      if(sub==='all'){
-      lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'"
+      lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'"
     sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.BRANCH_CODE='"+branch+"'and s.YOP_BTECH='"+year+"'";
    }
    else{
 
-    lengt = "select distinct t.test_id,t.sub_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'inner join sub_tnp st on st.sub_name='"+sub+"' and st.id=t.sub_id"
+    lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'inner join sub_tnp st on st.sub_name='"+sub+"' and st.id=t.sub_id"
     sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
    }
 }con.query(lengt,(e,len)=>{
         len=len.length;
+        console.log(len);
   con.query(sql,(err,roll)=>{
     roll=JSON.parse(JSON.stringify(roll));
     roll.forEach((ele,j) => {
@@ -1125,14 +1137,16 @@ app.post('/display/testdata',(req,res)=>{
       test[testName[i]]=JSON.parse(JSON.stringify(result));
       if(i===testId.length-1){
         let sum=avg.reduce((a,b)=> a+=b);
-        sum=sum/len;
-        test['avg']=sum;
+        // console.log(sum);
+        sum=sum/(2*len);
+        // console.log(sum);
+        test['avg']=Math.round(sum*100)/100;
      }
       testData[j]=(JSON.parse(JSON.stringify(test)));
       if(j===roll.length-1 && i===testId.length-1){
           returnData.testData=testData;
           returnData.status="succcessful";
-          console.log(returnData)
+          // console.log(returnData)
           res.send(returnData);
       }
           })      
@@ -1147,7 +1161,7 @@ app.post('/tests',(req,res)=>{
   branch=req.body.branch;
   year=req.body.year;
   returnData = {};
-  sub=[];
+   let test=[];
   let sql;
   if(branch==='all')
   {
@@ -1158,9 +1172,10 @@ app.post('/tests',(req,res)=>{
   }con.query(sql,(err,result)=>{
     result=JSON.parse(JSON.stringify(result))
     result.forEach(ele=>{
-      sub.push(ele.test_name);
+      test.push(ele.test_name);
     })
-    returnData['tests']=sub;
+    returnData['tests']=test;
+    console.log(returnData);
     res.send(returnData);
   });
  
