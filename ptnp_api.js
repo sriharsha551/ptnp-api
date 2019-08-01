@@ -13,7 +13,7 @@ const port = 5000;
 let con = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "sriharsha@12345",
+  password: "sriharsha12345",
   database: "pragati_tnp"
 });
 
@@ -25,7 +25,6 @@ con.connect(function(err) {
 
 app.use(cors());
 app.use(bodyParser.json());
-
 
 app.post("/login/page",(req,res)=>{
   let returnData ={};
@@ -63,7 +62,7 @@ app.post("/login/page",(req,res)=>{
 app.post("/user/add", (req, res) => {
   let returnData = {};
   let data = req.body.data;
-  console.log(data);
+  // console.log(data);
   if(data.branch === '') data.branch = null;
   data.password = sha256(data.password);
   let sql = "select user_name from users where delete_status='0'";
@@ -155,14 +154,18 @@ app.post("/students/add", upload.array("file", 12), (req, res) => {
   for (let i = 0; i < Object.keys(files).length; i++) {
     filenames.push(files[i].path);
   }
-  filenames.forEach(path => {
+  filenames.forEach((path,iter) => {
     const obj = xlsx.parse(path);
     let records = obj[0].data;
-    let index = records[0].indexOf("DOB");
+    let index = records[0].indexOf("DOB");   
     for (let i = 1; i < records.length; i++) {
       records[i][index] = getJsDateFromExcel(records[i][index]);
     }
-    let values = [records[1], records[2], records[3]];
+    let values = [];
+    for(let i=1;i<records.length;i++)
+    {
+      values.push(records[i]);
+    }
     let sql = "insert into student_details (" + records[0] + ") values ? on duplicate key update "+ 
     "NAME=values(NAME),BRANCH_CODE=values(BRANCH_CODE),GENDER = values(GENDER),BTECH_CGPA=values(BTECH_CGPA), "+
     "BTECH_PERCENTAGE=values(BTECH_PERCENTAGE),YOP_BTECH=values(YOP_BTECH),INTER_PERCENTAGE=values(INTER_PERCENTAGE), "+
@@ -175,33 +178,38 @@ app.post("/students/add", upload.array("file", 12), (req, res) => {
       if (err) {
         returnData.error=err.code;
         returnData.status = "Sorry! can not import students data!";
-        res.send(returnData);
+        // console.log(err);
+        res.send(returnData)
+      }
+      else{
+        if(filenames.length-1===iter){
+          returnData.status = "Data Imported Successfully!";
+          res.send(returnData);
+        }
       }
     });
   });
-  returnData.status = "Data Imported Successfully!";
-  res.send(returnData);
 });
 
 app.post('/student/details',(req,res)=>{
-  HTNO = req.body.HTNO;
+  let HTNO = req.body.HTNO;
   let personal=[];
   let drives=[];
   let returnData={}
   let sql="select *  from student_details where HTNO='"+HTNO+"'";
   con.query(sql,(err,result)=>{
-    if(err) {
+    if(result.length===0) {
       returnData.status="Sorry ! Cannot find student";
-      returnData.result=[];
+      res.send(returnData)
     }
     else{
     personal.push(JSON.parse(JSON.stringify(result)));
     returnData.result=[personal[0][0]];
-  let sql2 = "select d.company,r.round_name,dp.selected,dp.offer_letter from drive_process "+
+  let sql2 = "select d.drive_id,d.company,r.round_name,dp.selected,dp.offer_letter from drive_process "+
 "dp inner join drive_details d on d.drive_id=dp.drive_id inner join "+
 "rounds r on r.id=dp.round_id where dp.HTNO='"+HTNO+"'";
   con.query(sql2,(err,result)=>{
-    if(err)
+    if(result.length===0)
     {
       returnData.status="Sorry cannot get the data"; 
       returnData.result[1]=drives;
@@ -221,8 +229,8 @@ app.post('/student/details',(req,res)=>{
 });
 
 app.post('/student/editDetail',(req,res)=>{
-  returnData={};
-  data=req.body;
+  let returnData={};
+  let data=req.body;
   let date=data.DOB.split('/');
   DOB = [date[2], date[0], date[1]].join("-");
   if(data.BTECH_PERCENTAGE===null)
@@ -255,15 +263,17 @@ if(data.SSC_GPA===null)
 
 app.post('/search/student/driveEditDetail',(req,res)=>{
   let data=req.body.ups;
+  let returnData={};
   let HTNO=req.body.HTNO;
   let selection_staus = 0;
-  data.forEach((ele)=>{
+  data.forEach((ele,i)=>{
     if(ele.selected==="Selected"){
       selection_staus++;
     }
     let sql="select id from rounds where round_name='"+ele.round_name+"'";
-    con.query(sql);
-      let sql2 = "update drive_process  set selected='"+ele.selected+"',offer_letter='"+ele.offer_letter+"',round_id='"+round_id[0].id+"'where HTNO ='"+HTNO+"'";
+    con.query(sql,(er,round_id)=>{
+      round_id=JSON.parse(JSON.stringify(round_id));
+      let sql2 = "update drive_process  set selected='"+ele.selected+"',offer_letter='"+ele.offer_letter+"',round_id='"+round_id[0].id+"'where HTNO ='"+HTNO+"'and drive_id='"+ele.drive_id+"'";
       con.query(sql2,(error,result)=>
       {
         if(error)
@@ -276,10 +286,17 @@ app.post('/search/student/driveEditDetail',(req,res)=>{
           con.query(sql);
           returnData.status="Successfull";
         }
+        else{
+          let sql = "update student_details set selection_status = '0' where HTNO = '"+HTNO+"' ";
+          con.query(sql);
+          returnData.status="Successfull";
+        }
       }
+      if(i===data.length-1)
       res.send(returnData);
       })
     })
+  })
   })
 
 
@@ -731,8 +748,9 @@ app.post("/drives/olddrive", (req, res) => {
 });
 
 app.post('/drive/rounds',(req,res)=>{
+  let returnData ={};
   let  drive_name=req.body.drive_name;
-  sql="select r.round_name from rounds r inner join drive_details d "+
+  sql="select  distinct r.round_name from rounds r inner join drive_details d "+
 "inner join drive_rounds dr on r.id=dr.round_id and "+
 "d.drive_id=dr.drive_id where d.company='"+drive_name+"'";
   con.query(sql,(err,result)=>
@@ -745,8 +763,9 @@ app.post('/drive/rounds',(req,res)=>{
       returnData.status="Successfull";
     returnData.result=JSON.parse(JSON.stringify(result));
     }
+    res.send(returnData);
   })
-  res.send(returnData);
+
 })
 
 app.post("/drives/drivesList", (req, res) => {
@@ -773,10 +792,10 @@ app.post("/drives/drivesList", (req, res) => {
 });
 
 app.post("/drives/performance/driveDetails", (req, res) => {
-  returnData = {};
-  values = [];
-  values1 = [];
-  data = req.body;
+  let returnData = {};
+  let values = [];
+  let values1 = [];
+  let data = req.body;
   let drive_id = data.drive_id;
   sql1 ="select dp.HTNO,r.round_name,dp.attendance_status,dp.selected,dp.offer_letter from drive_process dp inner join rounds r on dp.drive_id='"+drive_id +"' and r.id = dp.round_id";
   con.query(sql1, (err, selected) => {
@@ -812,7 +831,7 @@ app.post("/drives/performance/driveDetails", (req, res) => {
 });
 
 app.post("/drives/performance/editDetail", (req, res) => {
-  returnData={};
+  let returnData={};
   round_name = req.body.round_name;
   attendance_status = req.body.attendanceStatus;
   HTNO = req.body.HTNO;
@@ -951,101 +970,55 @@ app.get("/passing/year", (req, res) => {
   });
 });
 
-app.post('/test/addData',upload.array("file", 12),(req,res)=>{
+app.post("/test/addData", upload.array("file", 12), (req, res) => {
   let files = req.files;
-  let filenames=[];
-  let originalnames=[];
-  let excluding=[];
+  let testId = req.body.test_id;
+  let filename = files[0].path;
   let returnData = {};
-  files.forEach((ele)=>{
-    ele=ele.originalname.split(' ');
-    originalnames.push(ele[0]);
-    if(!excluding.includes(ele[0]))
-      excluding.push(ele[0]);  
-  })
-  for(let i=0;i<excluding.length;i++){
-    let sql="select count(*) from test_tnp where test_name='"+excluding[i]+"'";
-    con.query(sql,(err,count)=>{
-      count=(JSON.parse(JSON.stringify(count)));
-      if(count[0]['count(*)']===0)
-      {
-        con.query("insert into test_tnp (test_name) values ('"+excluding[i]+"')");
-        if(i==excluding.length-1)
-          next();
+  let sql;
+  const obj = xlsx.parse(filename);
+  let records = obj[0].data;
+  records.forEach(record => {
+    record.shift();
+  });
+  let columns = records[0];
+  records.shift();
+  records.forEach((student, studentNo) => {
+    for (let i = 1; i <columns.length; i++) {
+    let duplicate = "select count(*) from training_test where HTNO='"+student[0]+"'and test_id='"+testId+"'and sub_id='"+columns[i]+"'";
+    con.query(duplicate,(err,result)=>{
+      result=JSON.parse(JSON.stringify(result));
+      if(result[0]['count(*)']===0){
+         sql = "insert into training_test (HTNO,test_id,sub_id,marks) values('"+student[0]+"','"+testId+"','"+columns[i]+"','"+student[i]+"')";
       }
       else{
-        next();
-      }
-    })
-    returnData.status = "Successfull!";
-    res.send(returnData)
-  }
-next=()=>{
-  for(let i=0;i<originalnames.length;i++){
-      con.query("select id from test_tnp where test_name='"+originalnames[i]+"'",(error,test_id)=>{
-        test_id=(JSON.parse(JSON.stringify(test_id)));
-        test_id=(test_id[0].id);
-        filenames.push(files[i].path);
-        const obj = xlsx.parse(filenames[i]);
-        let records = obj[0].data;
-        let HTNO=[];
-        let grades=[];
-        let unique_sub=[];
-        let sub=[];
-        let ori_sub=[];
-        // console.log(records);
-        for(let i=2;i<records[0].length;i++){
-          sub.push(records[0][i]);
-          if(!ori_sub.includes(records[0][i]))
-            ori_sub.push(records[0][i]);
-        }
-        // console.log(sub);
-        for(let i=1;i<records.length;i++){
-          HTNO.push(records[i][1]);
-        }
-        for(let i=2;i<records[0].length;i++){
-          for(let j=1;j<records.length;j++)
-            grades.push(records[j][i]);
-        }
-        // console.log(grades);
-        let k=0;
-        sub.forEach(ele=>{
-        let sql2="select count(*) from sub_tnp where sub_name='"+ele+"'";
-        con.query(sql2,(err,count)=>{
-        count=(JSON.parse(JSON.stringify(count)));
-        if(count[0]['count(*)']===0)
-        {
-          con.query("insert into sub_tnp (sub_name) values ('"+ele+"')");
-        }
-        con.query("select id from sub_tnp where sub_name='"+ele+"'",(error,sub_id)=>{
-        sub_id=(JSON.parse(JSON.stringify(sub_id)));
-        sub_id=(sub_id[0].id);
-        for(let j=0;j<HTNO.length;j++)
-        {
-          // console.log(j);
-          let duplicate = "select count(*) from training_test where HTNO='"+HTNO[j]+"'and test_id='"+test_id+"'and sub_id='"+sub_id+"'";
-          con.query(duplicate,(err,dup)=>{
-              dup=JSON.parse(JSON.stringify(dup));
-              if((dup[0]['count(*)'])===0)
-                  con.query("insert into training_test(HTNO,test_id,sub_id,marks) values('"+HTNO[j]+"','"+test_id+"','"+sub_id+"','"+grades[k]+"')");
-              else 
-              con.query("update training_test set marks='"+grades[k]+"'where HTNO='"+HTNO[j]+"'and test_id='"+test_id+"'and sub_id='"+sub_id+"'");
-              k++;
-          })
-        }})
-      })
-    })
-    })
-  }
+        sql = "update training_test set marks='"+student[i]+"'where HTNO='"+student[0]+"'and test_id='"+testId+"'and sub_id='"+columns[i]+"'";
+      } 
+       con.query(sql,(err,insertResult)=>{
+          if (err) {
+            // console.log(err);
+            returnData.error=err.code;
+            returnData.status = "Sorry! can not add data!";
+          }
+          else{
+            returnData.status="Successfully added!";
+          }
+          if(studentNo === records.length-1 && i===columns.length-1 )
+            update();
+      });
+});
+    }
+});
+function update (){
+  res.send(returnData);
 }
-
-})
+});
 
 app.post('/tests/subjects',(req,res)=>{
- returnData = {};
+ let returnData = {};
  branch = req.body.branch;
  year = req.body.year;
- sub=[];
+ let sub=[];
  let sql='';
  if(branch==='all')
  {
@@ -1056,10 +1029,13 @@ app.post('/tests/subjects',(req,res)=>{
  }
 
  con.query(sql,(err,result)=>{
+   if(err)
+    returnData.status="Cannot get subjects";
    result=JSON.parse(JSON.stringify(result))
    result.forEach(ele=>{
      sub.push(ele.sub_name);
    })
+   returnData.status="Successful";
    returnData['subjects']=sub;
    res.send(returnData);
  });
@@ -1092,9 +1068,10 @@ app.post('/display/testdata',(req,res)=>{
    else{
     sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
    }
-}con.query(lengt,(e,len)=>{
+}
+  
+con.query(lengt,(e,len)=>{
         len=len.length;
-        console.log(len);
   con.query(sql,(err,roll)=>{
     roll=JSON.parse(JSON.stringify(roll));
     roll.forEach((ele,j) => {
@@ -1103,10 +1080,10 @@ app.post('/display/testdata',(req,res)=>{
       let a=0;
 
     if(branch==='all'){
-       sql3="select distinct t.id,t.test_name from training_test tt inner join test_tnp t on t.id = tt.id inner join student_details s on s.YOP_BTECH='"+year+"'"; 
+       sql3="select distinct t.test_id,t.test_name from training_test tt inner join test_details t on t.test_id = tt.test_id inner join student_details s on s.YOP_BTECH='"+year+"'"; 
     }
     else{
-       sql3="select distinct t.id,t.test_name from training_test tt inner join test_tnp t on t.id = tt.id inner join student_details s on s.YOP_BTECH='"+year+"'and s.BRANCH_CODE='"+branch+"'";
+       sql3="select distinct t.test_id,t.test_name from training_test tt inner join test_details t on t.test_id = tt.id inner join student_details s on s.YOP_BTECH='"+year+"'and s.BRANCH_CODE='"+branch+"'";
     }
       con.query(sql3,(er,test_name)=>{
         let testId=[];
@@ -1114,29 +1091,27 @@ app.post('/display/testdata',(req,res)=>{
         test_name=JSON.parse(JSON.stringify(test_name))
         test_name.forEach(test=>{
           testName.push(test.test_name);
-          testId.push(test.id);
-        })
-        // console.log(testId);
-        test['rollNumber']=JSON.parse(JSON.stringify(ele.HTNO))
+          testId.push(test.test_id);
+        }) 
+    test['rollNumber']=JSON.parse(JSON.stringify(ele.HTNO))
     testId.forEach((name,i)=>{
       if(sub==='all'){
-         sql2 = "select ts.sub_name,t.marks from training_test t inner join test_tnp tt on t.test_id=tt.id inner join sub_tnp ts on ts.id = t.sub_id where t.HTNO='"+ele.HTNO+"' and t.test_id='"+name+"'";
-
+         sql2 = "select ts.sub_name,t.marks from training_test t inner join sub_tnp ts on ts.id = t.sub_id where t.HTNO='"+ele.HTNO+"' and t.test_id='"+name+"'";
       }
       else{
     sql2 = "select ts.sub_name,t.marks from training_test t inner join test_tnp tt on t.test_id=tt.id inner join sub_tnp ts on ts.id = t.sub_id where t.HTNO='"+ele.HTNO+"' and t.test_id='"+name+"'and sub_name='"+sub+"'";
-      }con.query(sql2,(err,marks)=>{
+  }con.query(sql2,(err,marks)=>{
       result={};
       marks = JSON.parse(JSON.stringify(marks));
       marks.forEach(element=>{
         result[element.sub_name]=element.marks;
         avg.push(element.marks);
       })
-      console.log(avg);
+      // console.log(avg);
       test[testName[i]]=JSON.parse(JSON.stringify(result));
       if(i===testId.length-1){
         let sum=avg.reduce((a,b)=> a+=b);
-        console.log(sum,len);
+        // console.log(sum,len);
         sum=sum/len;
         test['avg']=sum;
      }
@@ -1144,7 +1119,6 @@ app.post('/display/testdata',(req,res)=>{
       if(j===roll.length-1 && i===testId.length-1){
           returnData.testData=testData;
           returnData.status="succcessful";
-          // console.log(returnData)
           res.send(returnData);
       }
           })      
@@ -1153,32 +1127,171 @@ app.post('/display/testdata',(req,res)=>{
     });
   })
   })
-})
+});
 
-app.post('/tests',(req,res)=>{
-  branch=req.body.branch;
-  year=req.body.year;
-  returnData = {};
-   let test=[];
+app.post('/tests/subs/include',(req,res)=>{
+  let branch=req.body.branch_code;
+  let year=req.body.yop;
+  let sub=req.body.subject;
+  let tests=[];
+  let testnames=[];
+  let subs=[];
+  let final={};
+  let returnData={};
   let sql;
-  if(branch==='all')
-  {
-    sql="select distinct s.test_name from test_tnp s inner join student_details sd on sd.YOP_BTECH='"+year+"'inner join training_test t on t.HTNO=sd.HTNO where s.id=t.sub_id";
+  let sql2;
+  if(branch==='all'){
+     sql = "select distinct t.test_id,tt.test_name from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'inner join test_details tt on t.test_id=tt.test_id"  
   }
   else{
-   sql = "select distinct s.test_name from test_tnp s inner join student_details sd on sd.BRANCH_CODE='"+branch+"'and sd.YOP_BTECH='"+year+"'inner join training_test t on t.HTNO=sd.HTNO where s.id=t.sub_id";
-  }con.query(sql,(err,result)=>{
-    result=JSON.parse(JSON.stringify(result))
-    result.forEach(ele=>{
-      test.push(ele.test_name);
+  sql = "select distinct t.test_id,tt.test_name from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'inner join test_details tt on t.test_id=tt.test_id"
+  }con.query(sql,(err,re)=>
+  {
+    re=JSON.parse(JSON.stringify(re));
+    re.forEach(ele=>{
+      tests.push(ele.test_id);
+      testnames.push(ele.test_name);
     })
-    returnData['tests']=test;
-    console.log(returnData);
+    tests.forEach((ele,i)=>{
+      let subs=[];
+      if(sub==='all'){
+       sql2="select distinct st.sub_name from test_tnp t inner join sub_tnp st on t.sub_id=st.id where test_id='"+ele+"'";
+      }
+      else
+      {
+        sql2="select distinct st.sub_name from test_tnp t inner join sub_tnp st on t.sub_id=st.id where test_id='"+ele+"' and st.sub_name='"+sub+"'";
+      }
+      con.query(sql2,(error,result)=>{
+        if(err)
+          returnData.status="Cannot get subjects";
+        result=JSON.parse(JSON.stringify(result));
+        result.forEach(ele=>{
+          subs.push(ele.sub_name);
+        })
+        returnData.status="Successfull";
+        final[testnames[i]]=subs;
+        if(i===tests.length-1){
+          returnData['subject_count']=final;
+          res.send(returnData);}
+      })
+    })
+  })
+})
+
+app.post("/subjects/add", function(req, res) {
+  let returnData = {};
+  let data = req.body;
+  let sql = "select count(sub_name) from sub_tnp where sub_name='"+data.data+"'and delete_status='0'";
+  con.query(sql,(error,count)=>{
+    if(error) res.send("cannot find sub name");
+    else{
+    count=count[0]['count(sub_name)'];
+    if(count===0){
+    let sql = "insert into sub_tnp (sub_name,sub_code) values ('" + data.subject + "','"+data.code+"')";
+    con.query(sql, (err, result) => {
+    if (err) res.send("cannot insert sub_tnp");
+    else{
+      res.send("subs added successfully");
+    }
+  });
+}
+}
+});
+});
+
+app.get("/subjects", function(req, res) {
+  let returnData = {};
+  con.query("select * from sub_tnp where delete_status='0'", (err, result) => {
+    if (err){
+      returnData.error = err.code;
+      returnData.status = "Error!";
+      returnData.result = [];
+      res.send(returnData);
+    }
+    returnData = { result: JSON.parse(JSON.stringify(result)) };
     res.send(returnData);
   });
- 
- })
+});
 
+app.post("/newtest/subjects", (req, res) => {
+  let returnData = {};
+  let testId = req.body.test_id;
+  let sql = "select s.id,s.sub_name,s.sub_code from sub_tnp s where s.id in (select sub_id from test_tnp t where test_id = "+testId+");"
+  con.query(sql,(err,result)=>{
+    if(err)
+    {
+      returnData.error = err.code;
+      returnData.status = "sorry! not available!";
+      res.send(returnData);
+    }
+    else{
+      returnData.result = JSON.parse(JSON.stringify(result));
+      returnData.status = "Successful!";
+      res.send(returnData);
+    }
+  })
+});
+
+app.post("/subject/delete", (req, res) => {
+  let returnData = {};
+  data = req.body;
+  con.query(
+    "update sub_tnp set delete_status ='1' where id = (" + data.id + ") ",
+    (err, result) => {
+      if (err) {returnData.error = err.code;
+        returnData.status = "Error!";
+        returnData.result = [];
+        res.send(returnData);}
+    }
+  );
+  returnData.status = "Deleted Successfully";
+  res.send(returnData);
+});
+app.post("/tests/add", upload.none(), (req, res) => {
+  let returnData = {};
+  let data = req.body.data;
+  data['no_of_subjects']=parseInt(data['no_of_subjects']);
+  sub_id = data.subjects;
+  delete data["subjects"];
+  let date = data["date_of_test"].split("/");
+  data["date_of_test"] = [date[2], date[1], date[0]].join("-");
+  let columns = Object.keys(data);
+  let values = [Object.values(data)];
+  let test_id;
+  // console.log(sub_id);
+  let sql = "insert into test_details (" + columns + ") values ? ";
+  con.query(sql,[values],(err, result) => {
+    if (err) {
+      // console.log(err);
+      returnData.error=err.code;
+      returnData.status = "Sorry! can not add!";
+      res.send(returnData);
+    }
+    else{
+    test_id=result.insertId;
+    sub_id.forEach((id,i)=>{
+      let sql = "insert into test_tnp (test_id,sub_id) values('"+test_id+"','"+id+"')";
+      con.query(sql,(err,result)=>{
+        if (err) {
+          returnData.error=err.code;
+          returnData.status = "Sorry! can not add drive!";
+          res.send(returnData);
+        }
+        else{
+          returnData.status = "Successfully added!";
+          if(data['no_of_subjects']-1 === i){
+            update();
+          }
+        }
+      });
+    });
+  }
+  });
+  function update(){
+    console.log(new Date());
+    res.send(returnData);
+  }
+});
 
 app.post('/tests/passing',(req,res)=>{
   let sql="select distinct YOP_BTECH from student_details order by YOP_BTECH desc";
@@ -1195,50 +1308,63 @@ app.post('/tests/passing',(req,res)=>{
   })
 })
 
-app.post('/tests/subs/include',(req,res)=>{
-  let branch=req.body.branch_code;
-  let year=req.body.yop;
-  let sub=req.body.subject;
-  let tests=[];
-  let testnames=[];
-  let subs=[];
-  let final={};
-  let returnData={};
-  let sql;
-  let sql2;
-  if(branch==='all'){
-     sql = "select distinct t.test_id,tt.test_name from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'inner join test_tnp tt on t.test_id=tt.id"  
-  }
-  else{
-  sql = "select distinct t.test_id,tt.test_name from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'inner join test_tnp tt on t.test_id=tt.id"
-  }con.query(sql,(err,re)=>
-  {
-    re=JSON.parse(JSON.stringify(re));
-    re.forEach(ele=>{
-      tests.push(ele.test_id);
-      testnames.push(ele.test_name);
-    })
-    tests.forEach((ele,i)=>{
-      let subs=[];
-      if(sub==='all'){
-       sql2="select distinct st.sub_name from training_test t inner join sub_tnp st on t.sub_id=st.id where test_id='"+ele+"'";
-      }
-      else
-      {
-        sql2="select distinct st.sub_name from training_test t inner join sub_tnp st on t.sub_id=st.id where test_id='"+ele+"' and sub_name='"+sub+"'";
-      }
-      con.query(sql2,(error,result)=>{
-        result=JSON.parse(JSON.stringify(result));
-        result.forEach(ele=>{
-          subs.push(ele.sub_name);
-        })
-        final[testnames[i]]=subs;
-        if(i===tests.length-1){
-          returnData['subject_count']=final;
-          res.send(returnData);}
-      })
-    })
-  })
-})
+app.post("/tests/years",(req,res)=>{
+  let returnData = {};
+  let years =[];
+  let sql = "select distinct year(date_of_test) from test_details order by  year(date_of_test) desc";
+  con.query(sql,(err,result)=>{
+    if(err)
+    {
+      returnData.status="Cannot get years";
+    }
+    else{
+      returnData.status="Successfull"
+      result = JSON.parse(JSON.stringify(result));
+      result.forEach(ele=>{
+        years.push(ele['year(date_of_test)'])
+      });
+      returnData.result = years;
+    }
+    res.send(returnData);
+  });
+});
 
-app.listen(port);
+app.post('/tests',(req,res)=>{
+  year=req.body.year;
+  let returnData = {};
+  let test={};
+  let sql="select distinct test_name ,test_id from test_details where year(date_of_test)='"+year+"'";
+    con.query(sql,(err,result)=>{
+    if(err)
+    {
+      returnData.status="Cannot get tests";
+    }
+    result=JSON.parse(JSON.stringify(result))
+    result.forEach(ele=>{
+      test[ele.test_id]=ele.test_name;
+    })
+    returnData.status="Successfull";
+    returnData['tests']=test;
+    res.send(returnData);
+  });
+ })
+
+ app.post('/test/subjects',(req,res)=>{
+   let test =  req.body.test_name;
+   let sub={};
+   let returnData={};
+   let sql = "select s.id,s.sub_name from test_details t inner join sub_tnp s where t.test_id='"+test+"'and t.sub_id=s.id";
+   con.query(sql,(err,result)=>{
+     result=JSON.parse(JSON.stringify(result))
+     result.forEach(ele=>
+      {
+        sub[ele.id]=ele.sub_name;
+      });
+      returnData.status="successful";
+      returnData.subjects=sub;
+      res.send(returnData);
+   })
+ })
+
+const server = app.listen(port);
+server.setTimeout(0);
