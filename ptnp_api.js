@@ -1080,14 +1080,14 @@ con.query(lengt,(e,len)=>{
       let a=0;
 
     if(branch==='all'){
-       sql3="select distinct t.test_id,t.test_name from training_test tt inner join test_details t on t.test_id = tt.test_id inner join student_details s on s.YOP_BTECH='"+year+"'"; 
+       sql3="select distinct t.test_id,t.test_name from training_test tt inner join test_details t on t.test_id = tt.test_id inner join student_details s on s.YOP_BTECH='"+year+"'and s.HTNO='"+ele.HTNO+"' where s.HTNO = tt.HTNO "; 
     }
     else{
-       sql3="select distinct t.test_id,t.test_name from training_test tt inner join test_details t on t.test_id = tt.id inner join student_details s on s.YOP_BTECH='"+year+"'and s.BRANCH_CODE='"+branch+"'";
+       sql3="select distinct t.test_id,t.test_name from training_test tt inner join test_details t on t.test_id = tt.test_id inner join student_details s on s.YOP_BTECH='"+year+"'and s.BRANCH_CODE='"+branch+"'and s.HTNO='"+ele.HTNO+"' where s.HTNO = tt.HTNO";
     }
       con.query(sql3,(er,test_name)=>{
         let testId=[];
-        testName=[];
+        let testName=[];
         test_name=JSON.parse(JSON.stringify(test_name))
         test_name.forEach(test=>{
           testName.push(test.test_name);
