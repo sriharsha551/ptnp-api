@@ -975,6 +975,7 @@ app.post("/test/addData", upload.array("file", 12), (req, res) => {
   let testId = req.body.test_id;
   let filename = files[0].path;
   let returnData = {};
+  let wrong=[];
   let sql;
   const obj = xlsx.parse(filename);
   let records = obj[0].data;
@@ -996,12 +997,16 @@ app.post("/test/addData", upload.array("file", 12), (req, res) => {
       } 
        con.query(sql,(err,insertResult)=>{
           if (err) {
-            // console.log(err);
+            if(!wrong.includes(student[0]))
+              wrong.push(student[0]);
             returnData.error=err.code;
-            returnData.status = "Sorry! can not add data!";
+            returnData.status = "Successfully imported , but records with HTNO("+wrong.toString()+") can not be found in database ";
           }
           else{
-            returnData.status="Successfully added!";
+            if(wrong.length===0)
+            returnData.status="Successfully imported!";
+            else
+            returnData.status="Successfully imported , but records with HTNO("+wrong.toString()+") can not be found in database"
           }
           if(studentNo === records.length-1 && i===columns.length-1 )
             update();
@@ -1113,7 +1118,7 @@ con.query(lengt,(e,len)=>{
         let sum=avg.reduce((a,b)=> a+=b);
         // console.log(sum,len);
         sum=sum/len;
-        test['avg']=sum;
+        test['avg']=Math.round(sum*100)/100;
      }
       testData[j]=(JSON.parse(JSON.stringify(test)));
       if(j===roll.length-1 && i===testId.length-1){
@@ -1288,7 +1293,6 @@ app.post("/tests/add", upload.none(), (req, res) => {
   }
   });
   function update(){
-    console.log(new Date());
     res.send(returnData);
   }
 });
