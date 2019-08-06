@@ -1170,12 +1170,14 @@ app.post('/tests/subs/include',(req,res)=>{
         if(err)
           returnData.status="Cannot get subjects";
         result=JSON.parse(JSON.stringify(result));
+        if(result.length!==0){
         result.forEach(ele=>{
           subs.push(ele.sub_name);
         })
+        final[testnames[i]]=subs;}
         returnData.status="Successfull";
-        final[testnames[i]]=subs;
         if(i===tests.length-1){
+          
           returnData['subject_count']=final;
           res.send(returnData);}
       })
