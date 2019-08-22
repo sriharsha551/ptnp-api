@@ -7,7 +7,7 @@ const bodyParser = require("body-parser");
 const sha256 = require('sha256');
 const { getJsDateFromExcel } = require("excel-date-to-js");
 var ses = require('node-ses')
-  , client = ses.createClient({ key: 'AKIAJN6MPFSBHHTMUS4A', secret: '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' });
+  , client = ses.createClient({ key: 'AKIAJN6MPFSBHHTMUS4A', secret: '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',region:'EU-WEST-1' });
 let mysql = require("mysql");
 let xlsx = require("node-xlsx");
 const port = 5000;
@@ -1378,20 +1378,7 @@ app.post('/tests',(req,res)=>{
    })
  })
 
-app.post('/send/mail',(req,res)=>{
-  console.log("hai");
-  client.sendEmail({
-    to: 'sanampudisriharsha@gmail.com',
-   from: 'placements@pragati.ac.in',
-   cc: '',
-   bcc: '',
-   subject: 'Hai Harsha you are student of PRAGATI',
-   message: 'Sending from node',
-   altText: 'plain text',
- }, function (err, data, res) {
-      if(err) throw err;
- });
-})
+
 
 const server = app.listen(port);
 server.setTimeout(0);
