@@ -6,6 +6,8 @@ const upload = multer({ dest: "uploads/" });
 const bodyParser = require("body-parser");
 const sha256 = require('sha256');
 const { getJsDateFromExcel } = require("excel-date-to-js");
+var ses = require('node-ses')
+  , client = ses.createClient({ key: 'AKIAJN6MPFSBHHTMUS4A', secret: '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' });
 let mysql = require("mysql");
 let xlsx = require("node-xlsx");
 const port = 5000;
@@ -343,19 +345,19 @@ app.post("/students/filter", (req, res) => {
     data.isSelected = "'0'";
     if(selectedDrives.length ===0){
       sql ="select distinct s.* from student_details s left join drive_process d on d.HTNO = s.HTNo where s."+btech_name+">="+data.btech_score+" and s."+inter_name+">="+data.class12_score+" and "+
-    "s."+ssc_name+">="+data.class10_score+" and s.BTECH_BACKLOGS<="+data.backlogs+" and s.EAMCET_RANK<"+data.eamcet_rank+" and s.GENDER in ("+ data.gender +") "
+    "s."+ssc_name+">="+data.class10_score+" and s.BTECH_BACKLOGS<="+data.backlogs+" and s.EAMCET_RANK<"+data.eamcet_rank+"  and s.GENDER in ("+ data.gender +") "
      +"and s.YOP_BTECH="+data.year_of_passing+" and s.BRANCH_CODE in ("+branch+") and s.selection_status in('0','1') ";
     }
     else{
     sql ="select distinct s.* from student_details s left join drive_process d on d.HTNO = s.HTNo where s."+btech_name+">="+data.btech_score+" and s."+inter_name+">="+data.class12_score+" and "+
-    "s."+ssc_name+">="+data.class10_score+" and s.BTECH_BACKLOGS<="+data.backlogs+" and s.EAMCET_RANK<"+data.eamcet_rank+" and s.GENDER in ("+ data.gender +") "
+    "s."+ssc_name+">="+data.class10_score+" and s.BTECH_BACKLOGS<="+data.backlogs+" and s.EAMCET_RANK<"+data.eamcet_rank+"  and s.GENDER in ("+ data.gender +") "
      +"and s.YOP_BTECH="+data.year_of_passing+" and s.BRANCH_CODE in ("+branch+") and s.selection_status = '0' or (s.selection_status = '1' and d.selected in ('selected') and d.drive_id in ("+selectedDrives+") )";
     }
   } 
   else {
     data.isSelected = "'0'";
     sql ="select * from student_details where "+btech_name+">="+data.btech_score+" and "+inter_name+">="+data.class12_score+" and "+
-    ""+ssc_name+">="+data.class10_score+" and BTECH_BACKLOGS<="+data.backlogs+" and EAMCET_RANK<"+data.eamcet_rank+" and GENDER in ("+ data.gender +") "
+    ""+ssc_name+">="+data.class10_score+" and BTECH_BACKLOGS<="+data.backlogs+" and EAMCET_RANK<"+data.eamcet_rank+"  and GENDER in ("+ data.gender +") "
      +"and YOP_BTECH="+data.year_of_passing+" and selection_status = "+data.isSelected+" and BRANCH_CODE in ("+branch+") ";
     }
    con.query(sql, (err, result) => {
@@ -384,14 +386,14 @@ app.post("/students/filter", (req, res) => {
         student.class10_score = student.SSC_GPA;
         delete student.SSC_GPA;
       }
-      if (student.INTER_CGPA === null) {
+      if (student.INTER_CGPA === null || student.INTER_CGPA===0) {
         delete student.INTER_CGPA;
         student.class12_score = student.INTER_PERCENTAGE;
         delete student.INTER_PERCENTAGE;
       } else {
         delete student.INTER_PERCENTAGE;
-        student.class12_score = student.INTER_GPA;
-        delete student.INTER_GPA;
+        student.class12_score = student.INTER_CGPA;
+        delete student.INTER_CGPA;
       }
       if (student.BTECH_CGPA === null) {
         delete student.BTECH_CGPA;
@@ -876,7 +878,9 @@ app.get("/drives/special",(req,res)=>{
   let data = [];
   let drives;
   let year = new Date().getFullYear();
-  let sql = "select drive_id,company,date_of_drive from drive_details where (YEAR(date_of_drive) = "+year+" or YEAR(date_of_drive) = "+(year-1)+") and delete_status='0'";
+  let date = new Date().toLocaleDateString("en-GB").split("/");
+  date = [date[2], date[0], date[1]].join("-");
+  let sql = "select drive_id,company,date_of_drive from drive_details where (YEAR(date_of_drive) = "+year+" or YEAR(date_of_drive) = "+(year-1)+") and date_of_drive<DATE_FORMAT('" +date +"', '%Y-%m-%d') and delete_status='0'";
   con.query(sql,(err,result)=>{
     if(err || result.length === 0){
       returnData.status = "Sorry! No drives available!";
@@ -1058,19 +1062,21 @@ app.post('/display/testdata',(req,res)=>{
   let sql3;
   let returnData={};
   if(branch==='all'){
-    lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'";
-      if(sub==='all'){
+    if(sub==='all'){
+      lengt = "select distinct t.test_id,tt.test_name from training_test  t inner join student_details s on s.YOP_BTECH='"+year+"'inner join test_details tt on t.test_id=tt.test_id"  ;
    sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.YOP_BTECH='"+year+"'";
   }
   else{
+    lengt = "select distinct t.test_id,tt.test_name from training_test  t inner join student_details s on s.YOP_BTECH=2020 inner join test_details tt on t.test_id=tt.test_id inner join sub_tnp st on st.id=t.sub_id and st.sub_name='"+sub+"'"  ;
    sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
   }}
   else{
-    lengt = "select distinct t.test_id from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'";
-     if(sub==='all'){
+    if(sub==='all'){
+      lengt = "select distinct t.test_id,tt.test_name from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'inner join test_details tt on t.test_id=tt.test_id"
     sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO where s.BRANCH_CODE='"+branch+"'and s.YOP_BTECH='"+year+"'";
    }
    else{
+    lengt = "select distinct t.test_id,tt.test_name from training_test  t inner join student_details s on s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"'inner join test_details tt on t.test_id=tt.test_id inner join sub_tnp st on st.id=t.sub_id and st.sub_name='"+sub+"'";
     sql="select distinct t.HTNO from training_test t inner join student_details s on s.HTNO=t.HTNO inner join sub_tnp st on st.id=t.sub_id where s.BRANCH_CODE='"+branch+"' and s.YOP_BTECH='"+year+"' and st.sub_name='"+sub+"'";
    }
 }
@@ -1093,7 +1099,7 @@ con.query(lengt,(e,len)=>{
       con.query(sql3,(er,test_name)=>{
         let testId=[];
         let testName=[];
-        test_name=JSON.parse(JSON.stringify(test_name))
+        test_name=JSON.parse(JSON.stringify(test_name));
         test_name.forEach(test=>{
           testName.push(test.test_name);
           testId.push(test.test_id);
@@ -1371,6 +1377,21 @@ app.post('/tests',(req,res)=>{
       res.send(returnData);
    })
  })
+
+app.post('/send/mail',(req,res)=>{
+  console.log("hai");
+  client.sendEmail({
+    to: 'sanampudisriharsha@gmail.com',
+   from: 'placements@pragati.ac.in',
+   cc: '',
+   bcc: '',
+   subject: 'Hai Harsha you are student of PRAGATI',
+   message: 'Sending from node',
+   altText: 'plain text',
+ }, function (err, data, res) {
+      if(err) throw err;
+ });
+})
 
 const server = app.listen(port);
 server.setTimeout(0);
