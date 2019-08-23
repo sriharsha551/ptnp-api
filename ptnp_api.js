@@ -41,7 +41,6 @@ app.post("/login/page",(req,res)=>{
       res.send(returnData);
     }
     else if (result.length === 0){
-      returnData.error = err.code;
       returnData.status = "User does not exist!";
       returnData.login = false;
       res.send(returnData);
