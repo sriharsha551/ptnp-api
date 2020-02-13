@@ -15,7 +15,7 @@ const port = 5000;
 let con = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "sriharsha12345",
+  password: "Tnp@pragati123",
   database: "pragati_tnp"
 });
 
@@ -158,8 +158,13 @@ app.post("/students/add", upload.array("file", 12), (req, res) => {
   filenames.forEach((path,iter) => {
     const obj = xlsx.parse(path);
     let records = obj[0].data;
-    let index = records[0].indexOf("DOB");   
+    let index = records[0].indexOf("DOB");
+  
     for (let i = 1; i < records.length; i++) {
+        for(let j=0;j < records[i].length;j++){
+            if(j!=index){
+	    records[i][j] = (records[i][j]+'').trim();
+	}}
       records[i][index] = getJsDateFromExcel(records[i][index]);
     }
     let values = [];
@@ -179,7 +184,6 @@ app.post("/students/add", upload.array("file", 12), (req, res) => {
       if (err) {
         returnData.error=err.code;
         returnData.status = "Sorry! can not import students data!";
-        // console.log(err);
         res.send(returnData)
       }
       else{
@@ -300,10 +304,73 @@ app.post('/search/student/driveEditDetail',(req,res)=>{
   })
   })
 
+app.post("/students/basic/filter", (req,res) => {
+  let returnData = {};
+  let data = req.body.data;
+  let branch = [];
+  data.branch.forEach(element => {
+    branch.push(parseInt(element));
+  });
+  branch = `${unescape(branch)}`;
+  let sql ="select * from student_details where "+"YOP_BTECH="+data.year_of_passing+" and BRANCH_CODE in ("+branch+") ";
+   con.query(sql, (err, result) => {
+    if (err) {
+      returnData.error=err.code;
+      returnData.result=[];
+      returnData.status = "Sorry! can not filter students!";
+console.log(err);
+      res.send(returnData);
+    }
+    else{
+      if(result.length===0){
+        returnData.error = "Invalid criteria!"
+        returnData.status = "No students to filter for given criteria!";
+        returnData.result=result;
+        res.send(returnData);
+      }
+      else{
+        result = JSON.parse(JSON.stringify(result));
+    result.forEach(student => {
+      if (student.SSC_GPA === null) {
+        delete student.SSC_GPA;
+        student.class10_score = student.SSC_PERCENTAGE;
+        delete student.SSC_PERCENTAGE;
+      } else {
+        delete student.SSC_PERCENTAGE;
+        student.class10_score = student.SSC_GPA;
+        delete student.SSC_GPA;
+      }
+      if (student.INTER_CGPA === null || student.INTER_CGPA===0) {
+        delete student.INTER_CGPA;
+        student.class12_score = student.INTER_PERCENTAGE;
+        delete student.INTER_PERCENTAGE;
+      } else {
+        delete student.INTER_PERCENTAGE;
+        student.class12_score = student.INTER_CGPA;
+        delete student.INTER_CGPA;
+      }
+      if (student.BTECH_CGPA === null) {
+        delete student.BTECH_CGPA;
+        student.btech_score = student.BTECH_PERCENTAGE;
+        delete student.BTECH_PERCENTAGE;
+      } else {
+        delete student.BTECH_PERCENTAGE;
+        student.btech_score = student.BTECH_CGPA;
+        delete student.BTECH_CGPA;
+      }
+    });
+    returnData.result = result;
+    returnData.status = "Filtered successfully!"
+    res.send(returnData);
+    }
+  }
+  });
+});
 
 app.post("/students/filter", (req, res) => {
   let returnData = {};
   let data = req.body.data;
+console.log(data);
   let branch = [];
   let selectedDrives = [];
   let btech_name, inter_name, ssc_name;
