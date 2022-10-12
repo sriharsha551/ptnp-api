@@ -21,7 +21,7 @@
     "node-ses": "^2.2.1",
     "node-xlsx": "^0.15.0",
     "promise": "^8.0.3",
-    "read-excel-file": "^4.0.1",
+    "read-excel-file": "^5.5.0",
     "sha256": "^0.2.0"
   }
 }
